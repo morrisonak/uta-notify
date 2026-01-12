@@ -1,0 +1,64 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "uta-notify",
+  "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "observability": {
+    "enabled": true
+  },
+
+  // D1 Database
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "uta-notify-db",
+      "database_id": "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+    }
+  ],
+
+  // R2 Object Storage (for attachments)
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "uta-notify-attachments"
+    }
+  ],
+
+  // Queues (for async message delivery) - requires paid plan
+  // Uncomment when upgrading to Workers Paid:
+  // "queues": {
+  //   "producers": [
+  //     { "queue": "message-delivery", "binding": "DELIVERY_QUEUE" },
+  //     { "queue": "message-delivery-dlq", "binding": "DELIVERY_DLQ" }
+  //   ],
+  //   "consumers": [
+  //     { "queue": "message-delivery", "max_batch_size": 10, "max_batch_timeout": 30, "max_retries": 3, "dead_letter_queue": "message-delivery-dlq" }
+  //   ]
+  // },
+
+  // KV Namespace (for sessions and caching)
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+    }
+  ],
+
+  // Environment variables (secrets should use wrangler secret)
+  "vars": {
+    "ENVIRONMENT": "development",
+    "APP_NAME": "UTA Notify"
+  }
+
+  // To create D1 database:
+  // wrangler d1 create uta-notify-db
+  // Then update the database_id above
+
+  // To apply migrations:
+  // wrangler d1 execute uta-notify-db --local --file=./core/db/schema.sql
+
+  // To set secrets:
+  // wrangler secret put TWITTER_API_KEY
+  // wrangler secret put SENDGRID_API_KEY
+}
