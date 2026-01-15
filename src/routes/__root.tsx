@@ -10,11 +10,13 @@ import {
   Bell,
   FileText,
   LayoutDashboard,
+  LogOut,
   MessageSquare,
   Settings,
   Users,
   BarChart3,
 } from "lucide-react";
+import { useSession, signOut } from "../lib/auth-client";
 
 import appCss from "../styles.css?url";
 
@@ -89,23 +91,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                 </NavLink>
               </div>
             </nav>
-            <div className="border-t p-4">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-sm font-medium text-primary">AD</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">Admin User</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    admin@uta.org
-                  </p>
-                </div>
-              </div>
-            </div>
+            <UserCard />
           </aside>
 
           {/* Main content */}
-          <main className="flex-1 overflow-auto">{children}</main>
+          <main className="flex-1 overflow-hidden">{children}</main>
         </div>
         <Scripts />
       </body>
@@ -131,6 +121,69 @@ function NavLink({
       {icon}
       {children}
     </Link>
+  );
+}
+
+function UserCard() {
+  const { user, isLoading } = useSession();
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
+  if (isLoading) {
+    return (
+      <div className="border-t p-4">
+        <div className="animate-pulse flex items-center gap-3">
+          <div className="h-8 w-8 rounded-full bg-muted" />
+          <div className="flex-1">
+            <div className="h-4 w-24 bg-muted rounded" />
+            <div className="h-3 w-32 bg-muted rounded mt-1" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="border-t p-4">
+        <Link
+          to="/login"
+          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          Sign In
+        </Link>
+      </div>
+    );
+  }
+
+  const initials = user.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  return (
+    <div className="border-t p-4">
+      <div className="flex items-center gap-3">
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+          <span className="text-sm font-medium text-primary">{initials}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{user.name}</p>
+          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+        </div>
+        <button
+          onClick={handleSignOut}
+          className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          title="Sign out"
+        >
+          <LogOut className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
   );
 }
 

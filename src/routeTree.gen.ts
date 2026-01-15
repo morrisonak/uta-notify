@@ -14,8 +14,13 @@ import { Route as SubscribersRouteImport } from './routes/subscribers'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IncidentsRouteImport } from './routes/incidents'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MessagesNewRouteImport } from './routes/messages/new'
+import { Route as MessagesMessageIdRouteImport } from './routes/messages/$messageId'
+import { Route as IncidentsNewRouteImport } from './routes/incidents/new'
+import { Route as IncidentsIncidentIdRouteImport } from './routes/incidents/$incidentId'
 
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
@@ -42,6 +47,11 @@ const MessagesRoute = MessagesRouteImport.update({
   path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IncidentsRoute = IncidentsRouteImport.update({
   id: '/incidents',
   path: '/incidents',
@@ -52,69 +62,120 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MessagesNewRoute = MessagesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => MessagesRoute,
+} as any)
+const MessagesMessageIdRoute = MessagesMessageIdRouteImport.update({
+  id: '/$messageId',
+  path: '/$messageId',
+  getParentRoute: () => MessagesRoute,
+} as any)
+const IncidentsNewRoute = IncidentsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => IncidentsRoute,
+} as any)
+const IncidentsIncidentIdRoute = IncidentsIncidentIdRouteImport.update({
+  id: '/$incidentId',
+  path: '/$incidentId',
+  getParentRoute: () => IncidentsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/incidents': typeof IncidentsRoute
-  '/messages': typeof MessagesRoute
+  '/incidents': typeof IncidentsRouteWithChildren
+  '/login': typeof LoginRoute
+  '/messages': typeof MessagesRouteWithChildren
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/subscribers': typeof SubscribersRoute
   '/templates': typeof TemplatesRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
+  '/incidents/new': typeof IncidentsNewRoute
+  '/messages/$messageId': typeof MessagesMessageIdRoute
+  '/messages/new': typeof MessagesNewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/incidents': typeof IncidentsRoute
-  '/messages': typeof MessagesRoute
+  '/incidents': typeof IncidentsRouteWithChildren
+  '/login': typeof LoginRoute
+  '/messages': typeof MessagesRouteWithChildren
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/subscribers': typeof SubscribersRoute
   '/templates': typeof TemplatesRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
+  '/incidents/new': typeof IncidentsNewRoute
+  '/messages/$messageId': typeof MessagesMessageIdRoute
+  '/messages/new': typeof MessagesNewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/incidents': typeof IncidentsRoute
-  '/messages': typeof MessagesRoute
+  '/incidents': typeof IncidentsRouteWithChildren
+  '/login': typeof LoginRoute
+  '/messages': typeof MessagesRouteWithChildren
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/subscribers': typeof SubscribersRoute
   '/templates': typeof TemplatesRoute
+  '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
+  '/incidents/new': typeof IncidentsNewRoute
+  '/messages/$messageId': typeof MessagesMessageIdRoute
+  '/messages/new': typeof MessagesNewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/incidents'
+    | '/login'
     | '/messages'
     | '/reports'
     | '/settings'
     | '/subscribers'
     | '/templates'
+    | '/incidents/$incidentId'
+    | '/incidents/new'
+    | '/messages/$messageId'
+    | '/messages/new'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/incidents'
+    | '/login'
     | '/messages'
     | '/reports'
     | '/settings'
     | '/subscribers'
     | '/templates'
+    | '/incidents/$incidentId'
+    | '/incidents/new'
+    | '/messages/$messageId'
+    | '/messages/new'
   id:
     | '__root__'
     | '/'
     | '/incidents'
+    | '/login'
     | '/messages'
     | '/reports'
     | '/settings'
     | '/subscribers'
     | '/templates'
+    | '/incidents/$incidentId'
+    | '/incidents/new'
+    | '/messages/$messageId'
+    | '/messages/new'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  IncidentsRoute: typeof IncidentsRoute
-  MessagesRoute: typeof MessagesRoute
+  IncidentsRoute: typeof IncidentsRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  MessagesRoute: typeof MessagesRouteWithChildren
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
   SubscribersRoute: typeof SubscribersRoute
@@ -158,6 +219,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/incidents': {
       id: '/incidents'
       path: '/incidents'
@@ -172,13 +240,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/messages/new': {
+      id: '/messages/new'
+      path: '/new'
+      fullPath: '/messages/new'
+      preLoaderRoute: typeof MessagesNewRouteImport
+      parentRoute: typeof MessagesRoute
+    }
+    '/messages/$messageId': {
+      id: '/messages/$messageId'
+      path: '/$messageId'
+      fullPath: '/messages/$messageId'
+      preLoaderRoute: typeof MessagesMessageIdRouteImport
+      parentRoute: typeof MessagesRoute
+    }
+    '/incidents/new': {
+      id: '/incidents/new'
+      path: '/new'
+      fullPath: '/incidents/new'
+      preLoaderRoute: typeof IncidentsNewRouteImport
+      parentRoute: typeof IncidentsRoute
+    }
+    '/incidents/$incidentId': {
+      id: '/incidents/$incidentId'
+      path: '/$incidentId'
+      fullPath: '/incidents/$incidentId'
+      preLoaderRoute: typeof IncidentsIncidentIdRouteImport
+      parentRoute: typeof IncidentsRoute
+    }
   }
 }
 
+interface IncidentsRouteChildren {
+  IncidentsIncidentIdRoute: typeof IncidentsIncidentIdRoute
+  IncidentsNewRoute: typeof IncidentsNewRoute
+}
+
+const IncidentsRouteChildren: IncidentsRouteChildren = {
+  IncidentsIncidentIdRoute: IncidentsIncidentIdRoute,
+  IncidentsNewRoute: IncidentsNewRoute,
+}
+
+const IncidentsRouteWithChildren = IncidentsRoute._addFileChildren(
+  IncidentsRouteChildren,
+)
+
+interface MessagesRouteChildren {
+  MessagesMessageIdRoute: typeof MessagesMessageIdRoute
+  MessagesNewRoute: typeof MessagesNewRoute
+}
+
+const MessagesRouteChildren: MessagesRouteChildren = {
+  MessagesMessageIdRoute: MessagesMessageIdRoute,
+  MessagesNewRoute: MessagesNewRoute,
+}
+
+const MessagesRouteWithChildren = MessagesRoute._addFileChildren(
+  MessagesRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  IncidentsRoute: IncidentsRoute,
-  MessagesRoute: MessagesRoute,
+  IncidentsRoute: IncidentsRouteWithChildren,
+  LoginRoute: LoginRoute,
+  MessagesRoute: MessagesRouteWithChildren,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
   SubscribersRoute: SubscribersRoute,

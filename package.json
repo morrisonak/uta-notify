@@ -14,7 +14,7 @@
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
-    "@cloudflare/vite-plugin": "^1.0.0",
+    "@cloudflare/vite-plugin": "^1.13.7",
     "@radix-ui/react-avatar": "^1.1.2",
     "@radix-ui/react-checkbox": "^1.1.3",
     "@radix-ui/react-dialog": "^1.1.4",
@@ -28,9 +28,9 @@
     "@radix-ui/react-tooltip": "^1.1.6",
     "@tailwindcss/vite": "^4.0.0",
     "@tanstack/react-query": "^5.62.0",
-    "@tanstack/react-router": "^1.132.0",
+    "@tanstack/react-router": "^1.147.3",
     "@tanstack/react-router-devtools": "^1.132.0",
-    "@tanstack/react-start": "^1.132.0",
+    "@tanstack/react-start": "^1.149.2",
     "@tanstack/router-plugin": "^1.132.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -51,7 +51,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "^5.7.2",
-    "vite": "^6.0.0",
+    "vite": "^7.1.7",
     "wrangler": "^3.99.0"
   }
 }
