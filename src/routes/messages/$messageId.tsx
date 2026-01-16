@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Send,
@@ -9,19 +9,25 @@ import {
   RefreshCw,
   Loader2,
   ExternalLink,
+  Zap,
 } from "lucide-react";
 import { getMessage, getMessageDeliveries } from "../../server/messages";
+import { queueMessageDelivery, getEnabledChannels } from "../../server/delivery";
 import { formatRelativeTime } from "../../lib/utils";
+import { useSession } from "../../lib/auth-client";
+import { hasPermission } from "../../lib/permissions";
 
 export const Route = createFileRoute("/messages/$messageId")({
   loader: async ({ params }) => {
-    const [messageData, deliveriesData] = await Promise.all([
+    const [messageData, deliveriesData, channelsData] = await Promise.all([
       getMessage({ data: { id: params.messageId } }),
       getMessageDeliveries({ data: { id: params.messageId } }),
+      getEnabledChannels().catch(() => ({ channels: [] })),
     ]);
     return {
       message: messageData.message,
       deliveries: deliveriesData.deliveries,
+      channels: channelsData.channels,
     };
   },
   component: MessageDetailPage,
@@ -54,10 +60,40 @@ interface Delivery {
   failed_at: string | null;
 }
 
+interface Channel {
+  id: string;
+  type: string;
+  name: string;
+  enabled: number;
+}
+
 function MessageDetailPage() {
-  const { message, deliveries } = Route.useLoaderData() as {
+  const router = useRouter();
+  const { message, deliveries, channels } = Route.useLoaderData() as {
     message: Message;
     deliveries: Delivery[];
+    channels: Channel[];
+  };
+  const { user } = useSession();
+  const canSend = hasPermission(user, "messages.send");
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const handleSendToChannels = async () => {
+    if (!canSend) return;
+
+    setIsSending(true);
+    setSendError(null);
+
+    try {
+      await queueMessageDelivery({ data: { messageId: message.id } });
+      // Refresh the page to show new deliveries
+      await router.invalidate();
+    } catch (error) {
+      setSendError(error instanceof Error ? error.message : "Failed to queue message");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const statusIcons: Record<string, React.ReactNode> = {
@@ -92,22 +128,45 @@ function MessageDetailPage() {
     <div className="p-4 lg:p-6">
       {/* Header */}
       <div className="mb-6">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <Send className="h-4 w-4" />
-          <span>Message</span>
-          <span>&bull;</span>
-          <span>{formatRelativeTime(message.created_at)}</span>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+              <Send className="h-4 w-4" />
+              <span>Message</span>
+              <span>&bull;</span>
+              <span>{formatRelativeTime(message.created_at)}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/incidents/$incidentId"
+                params={{ incidentId: message.incident_id }}
+                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+              >
+                View Incident
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+          </div>
+          {canSend && channels.length > 0 && (
+            <button
+              onClick={handleSendToChannels}
+              disabled={isSending}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {isSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Zap className="h-4 w-4" />
+              )}
+              Send to {channels.length} Channel{channels.length !== 1 ? "s" : ""}
+            </button>
+          )}
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/incidents/$incidentId"
-            params={{ incidentId: message.incident_id }}
-            className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-          >
-            View Incident
-            <ExternalLink className="h-3 w-3" />
-          </Link>
-        </div>
+        {sendError && (
+          <div className="mt-2 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+            {sendError}
+          </div>
+        )}
       </div>
 
       {/* Message Content */}

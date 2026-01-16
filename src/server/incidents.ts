@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
 import { requirePermission, getCurrentUser } from "../lib/auth";
 import { hasPermission } from "../lib/permissions";
+import { logAudit } from "./audit";
 
 /**
  * Incident server functions
@@ -184,6 +185,20 @@ export const createIncident = createServerFn({ method: "POST" })
       throw new Error("Failed to create incident");
     }
 
+    // Log the creation
+    await logAudit({
+      action: "create",
+      resourceType: "incident",
+      resourceId: id,
+      resourceName: data.title,
+      details: {
+        incidentType: data.incidentType,
+        severity: data.severity,
+        affectedModes: data.affectedModes,
+        affectedRoutes: data.affectedRoutes,
+      },
+    });
+
     return { success: true, id };
   });
 
@@ -196,6 +211,16 @@ export const updateIncident = createServerFn({ method: "POST" })
     // Base permission to edit incidents
     const auth = await requirePermission("incidents.edit");
     const db = getDB();
+
+    // Fetch original for audit trail
+    const original = await db
+      .prepare("SELECT * FROM incidents WHERE id = ?")
+      .bind(data.id)
+      .first<Incident>();
+
+    if (!original) {
+      throw new Error("Incident not found");
+    }
 
     // Check status-specific permissions
     if (data.status !== undefined) {
@@ -281,6 +306,39 @@ export const updateIncident = createServerFn({ method: "POST" })
       throw new Error("Failed to update incident");
     }
 
+    // Build changes object for audit
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
+    if (data.title !== undefined && data.title !== original.title) {
+      changes.title = { old: original.title, new: data.title };
+    }
+    if (data.severity !== undefined && data.severity !== original.severity) {
+      changes.severity = { old: original.severity, new: data.severity };
+    }
+    if (data.status !== undefined && data.status !== original.status) {
+      changes.status = { old: original.status, new: data.status };
+    }
+    if (data.publicMessage !== undefined && data.publicMessage !== original.public_message) {
+      changes.publicMessage = { old: original.public_message, new: data.publicMessage };
+    }
+
+    // Determine action type
+    let action: "update" | "publish" | "resolve" | "archive" = "update";
+    if (data.status === "active" && original.status !== "active") {
+      action = "publish";
+    } else if (data.status === "resolved") {
+      action = "resolve";
+    } else if (data.status === "archived") {
+      action = "archive";
+    }
+
+    await logAudit({
+      action,
+      resourceType: "incident",
+      resourceId: data.id,
+      resourceName: original.title,
+      changes: Object.keys(changes).length > 0 ? changes : undefined,
+    });
+
     return { success: true };
   });
 
@@ -293,6 +351,12 @@ export const deleteIncident = createServerFn({ method: "POST" })
     await requirePermission("incidents.delete");
     const db = getDB();
 
+    // Fetch incident for audit trail before deletion
+    const incident = await db
+      .prepare("SELECT * FROM incidents WHERE id = ?")
+      .bind(data.id)
+      .first<Incident>();
+
     const result = await db
       .prepare("DELETE FROM incidents WHERE id = ?")
       .bind(data.id)
@@ -301,6 +365,18 @@ export const deleteIncident = createServerFn({ method: "POST" })
     if (!result.success) {
       throw new Error("Failed to delete incident");
     }
+
+    await logAudit({
+      action: "delete",
+      resourceType: "incident",
+      resourceId: data.id,
+      resourceName: incident?.title || "Unknown",
+      details: incident ? {
+        severity: incident.severity,
+        status: incident.status,
+        incidentType: incident.incident_type,
+      } : undefined,
+    });
 
     return { success: true };
   });

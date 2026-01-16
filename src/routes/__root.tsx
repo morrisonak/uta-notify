@@ -15,6 +15,7 @@ import {
   Settings,
   Users,
   BarChart3,
+  Shield,
 } from "lucide-react";
 import { useSession, signOut, SessionProvider } from "../lib/auth-client";
 
@@ -87,6 +88,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
                   Reports
                 </NavLink>
                 <div className="pt-4">
+                  <NavLink to="/audit" icon={<Shield className="h-4 w-4" />}>
+                    Audit Log
+                  </NavLink>
                   <NavLink to="/settings" icon={<Settings className="h-4 w-4" />}>
                     Settings
                   </NavLink>
