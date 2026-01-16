@@ -10,8 +10,14 @@ import {
 } from "lucide-react";
 import { getIncidents } from "../lib/server-functions";
 import { formatRelativeTime } from "../lib/utils";
+import { requireAuthFn } from "../server/auth";
+import { useSession } from "../lib/auth-client";
+import { hasPermission } from "../lib/permissions";
 
 export const Route = createFileRoute("/incidents")({
+  beforeLoad: async () => {
+    await requireAuthFn();
+  },
   loader: async () => {
     try {
       const result = await getIncidents({ data: { limit: 50 } });
@@ -42,6 +48,8 @@ interface Incident {
 function IncidentsLayout() {
   const { incidents } = Route.useLoaderData() as { incidents: Incident[] };
   const matches = useMatches();
+  const { user } = useSession();
+  const canCreate = hasPermission(user, "incidents.create");
   const [statusFilter, setStatusFilter] = useState("");
   const [severityFilter, setSeverityFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -77,13 +85,15 @@ function IncidentsLayout() {
                 {filteredIncidents.length} incidents
               </p>
             </div>
-            <Link
-              to="/incidents/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              New
-            </Link>
+            {canCreate && (
+              <Link
+                to="/incidents/new"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4" />
+                New
+              </Link>
+            )}
           </div>
 
           {/* Search */}
@@ -143,15 +153,19 @@ function IncidentsLayout() {
               <p className="mb-4 text-sm text-muted-foreground">
                 {searchQuery || statusFilter || severityFilter
                   ? "Try adjusting your filters"
-                  : "Create your first incident"}
+                  : canCreate
+                    ? "Create your first incident"
+                    : "No incidents to display"}
               </p>
-              <Link
-                to="/incidents/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4" />
-                Create Incident
-              </Link>
+              {canCreate && (
+                <Link
+                  to="/incidents/new"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Incident
+                </Link>
+              )}
             </div>
           )}
         </div>
@@ -182,15 +196,19 @@ function IncidentsLayout() {
             </div>
             <h2 className="text-lg font-semibold mb-2">Select an incident</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Choose an incident from the list to view details, or create a new one.
+              {canCreate
+                ? "Choose an incident from the list to view details, or create a new one."
+                : "Choose an incident from the list to view details."}
             </p>
-            <Link
-              to="/incidents/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              New Incident
-            </Link>
+            {canCreate && (
+              <Link
+                to="/incidents/new"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4" />
+                New Incident
+              </Link>
+            )}
           </div>
         )}
       </div>

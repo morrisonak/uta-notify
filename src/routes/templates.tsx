@@ -24,8 +24,14 @@ import {
   seedDefaultTemplates,
   type Template,
 } from "../server/templates";
+import { requireAuthFn } from "../server/auth";
+import { useSession } from "../lib/auth-client";
+import { hasPermission } from "../lib/permissions";
 
 export const Route = createFileRoute("/templates")({
+  beforeLoad: async () => {
+    await requireAuthFn();
+  },
   loader: async () => {
     const result = await getTemplates({ data: { limit: 100 } });
     return { templates: result.templates };
@@ -55,6 +61,10 @@ const channelTypes = ["email", "sms", "push", "twitter", "signage"];
 
 function TemplatesPage() {
   const { templates } = Route.useLoaderData();
+  const { user } = useSession();
+  const canCreate = hasPermission(user, "templates.create");
+  const canEdit = hasPermission(user, "templates.edit");
+  const canDelete = hasPermission(user, "templates.delete");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [isSeeding, setIsSeeding] = useState(false);
@@ -102,7 +112,7 @@ function TemplatesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {templates.length === 0 && (
+          {templates.length === 0 && canCreate && (
             <button
               onClick={handleSeedTemplates}
               disabled={isSeeding}
@@ -116,13 +126,15 @@ function TemplatesPage() {
               Load Default Templates
             </button>
           )}
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            New Template
-          </button>
+          {canCreate && (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              New Template
+            </button>
+          )}
         </div>
       </div>
 
@@ -135,22 +147,27 @@ function TemplatesPage() {
             onEdit={() => setEditingTemplate(template)}
             onDuplicate={() => handleDuplicate(template.id)}
             onDelete={() => handleDelete(template.id)}
+            canCreate={canCreate}
+            canEdit={canEdit}
+            canDelete={canDelete}
           />
         ))}
 
         {/* Add New Template Card */}
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="rounded-xl border-2 border-dashed bg-card p-4 hover:border-primary hover:bg-accent/50 transition-colors flex flex-col items-center justify-center min-h-[180px]"
-        >
-          <div className="rounded-full bg-muted p-3 mb-3">
-            <Plus className="h-6 w-6 text-muted-foreground" />
-          </div>
-          <span className="font-medium">Create New Template</span>
-          <span className="text-sm text-muted-foreground">
-            Build a reusable message template
-          </span>
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="rounded-xl border-2 border-dashed bg-card p-4 hover:border-primary hover:bg-accent/50 transition-colors flex flex-col items-center justify-center min-h-[180px]"
+          >
+            <div className="rounded-full bg-muted p-3 mb-3">
+              <Plus className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <span className="font-medium">Create New Template</span>
+            <span className="text-sm text-muted-foreground">
+              Build a reusable message template
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Create Modal */}
@@ -174,6 +191,9 @@ interface TemplateCardProps {
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  canCreate: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
 }
 
 function TemplateCard({
@@ -181,6 +201,9 @@ function TemplateCard({
   onEdit,
   onDuplicate,
   onDelete,
+  canCreate,
+  canEdit,
+  canDelete,
 }: TemplateCardProps) {
   const channelIcon = template.channel_type
     ? channelIcons[template.channel_type]
@@ -215,27 +238,33 @@ function TemplateCard({
           Updated {new Date(template.updated_at).toLocaleDateString()}
         </span>
         <div className="flex gap-1">
-          <button
-            onClick={onDuplicate}
-            className="rounded p-1.5 hover:bg-accent"
-            title="Duplicate"
-          >
-            <Copy className="h-4 w-4" />
-          </button>
-          <button
-            onClick={onEdit}
-            className="rounded p-1.5 hover:bg-accent"
-            title="Edit"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="rounded p-1.5 hover:bg-accent text-red-500"
-            title="Delete"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {canCreate && (
+            <button
+              onClick={onDuplicate}
+              className="rounded p-1.5 hover:bg-accent"
+              title="Duplicate"
+            >
+              <Copy className="h-4 w-4" />
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={onEdit}
+              className="rounded p-1.5 hover:bg-accent"
+              title="Edit"
+            >
+              <Edit className="h-4 w-4" />
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={onDelete}
+              className="rounded p-1.5 hover:bg-accent text-red-500"
+              title="Delete"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </div>

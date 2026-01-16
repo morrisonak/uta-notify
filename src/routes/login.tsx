@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { AlertTriangle, Loader2, LogIn } from "lucide-react";
-import { signIn } from "../lib/auth-client";
+import { signIn, useSession } from "../lib/auth-client";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -9,6 +9,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { refetch } = useSession();
   const [email, setEmail] = useState("admin@uta.org");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +21,8 @@ function LoginPage() {
 
     try {
       await signIn(email);
+      // Refresh session state before navigating
+      await refetch();
       navigate({ to: "/" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed");

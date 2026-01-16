@@ -2,8 +2,14 @@ import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
 import { Users, Plus, Search, Mail, Phone, Bell, Download, Upload, X, Loader2 } from "lucide-react";
 import { createSubscriber, getSubscribers } from "../lib/server-functions";
+import { requireAuthFn } from "../server/auth";
+import { useSession } from "../lib/auth-client";
+import { hasPermission } from "../lib/permissions";
 
 export const Route = createFileRoute("/subscribers")({
+  beforeLoad: async () => {
+    await requireAuthFn();
+  },
   loader: async () => {
     try {
       const result = await getSubscribers({ data: {} });
@@ -22,6 +28,9 @@ export const Route = createFileRoute("/subscribers")({
 function SubscribersPage() {
   const { subscribers, stats } = Route.useLoaderData();
   const router = useRouter();
+  const { user } = useSession();
+  const canCreate = hasPermission(user, "subscribers.create");
+  const canExport = hasPermission(user, "subscribers.export");
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -45,21 +54,27 @@ function SubscribersPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-            <Upload className="h-4 w-4" />
-            Import
-          </button>
-          <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-            <Download className="h-4 w-4" />
-            Export
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            Add Subscriber
-          </button>
+          {canCreate && (
+            <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+              <Upload className="h-4 w-4" />
+              Import
+            </button>
+          )}
+          {canExport && (
+            <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+              <Download className="h-4 w-4" />
+              Export
+            </button>
+          )}
+          {canCreate && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              Add Subscriber
+            </button>
+          )}
         </div>
       </div>
 
@@ -177,21 +192,25 @@ function SubscribersPage() {
             </div>
             <h3 className="mb-2 text-lg font-semibold">No subscribers yet</h3>
             <p className="mb-6 max-w-sm text-sm text-muted-foreground">
-              Add subscribers manually or import them from a CSV file to start sending notifications.
+              {canCreate
+                ? "Add subscribers manually or import them from a CSV file to start sending notifications."
+                : "No subscribers to display."}
             </p>
-            <div className="flex gap-3">
-              <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-                <Upload className="h-4 w-4" />
-                Import CSV
-              </button>
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4" />
-                Add Subscriber
-              </button>
-            </div>
+            {canCreate && (
+              <div className="flex gap-3">
+                <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+                  <Upload className="h-4 w-4" />
+                  Import CSV
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  <Plus className="h-4 w-4" />
+                  Add Subscriber
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

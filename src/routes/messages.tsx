@@ -13,8 +13,14 @@ import {
 } from "lucide-react";
 import { getMessages, getMessageStats } from "../server/messages";
 import { formatRelativeTime } from "../lib/utils";
+import { requireAuthFn } from "../server/auth";
+import { useSession } from "../lib/auth-client";
+import { hasPermission } from "../lib/permissions";
 
 export const Route = createFileRoute("/messages")({
+  beforeLoad: async () => {
+    await requireAuthFn();
+  },
   loader: async () => {
     const [messagesData, statsData] = await Promise.all([
       getMessages({ data: { limit: 50 } }),
@@ -42,6 +48,8 @@ function MessagesLayout() {
     stats: { sentToday: number; pending: number; delivered: number; failed: number };
   };
   const matches = useMatches();
+  const { user } = useSession();
+  const canCreate = hasPermission(user, "messages.create");
   const [searchQuery, setSearchQuery] = useState("");
 
   const isChildRoute = matches.some(
@@ -72,13 +80,15 @@ function MessagesLayout() {
                 {messages.length} messages
               </p>
             </div>
-            <Link
-              to="/messages/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              New
-            </Link>
+            {canCreate && (
+              <Link
+                to="/messages/new"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4" />
+                New
+              </Link>
+            )}
           </div>
 
           {/* Stats Row */}
@@ -129,15 +139,21 @@ function MessagesLayout() {
               </div>
               <p className="mb-1 font-medium">No messages found</p>
               <p className="mb-4 text-sm text-muted-foreground">
-                {searchQuery ? "Try a different search" : "Send your first message"}
+                {searchQuery
+                  ? "Try a different search"
+                  : canCreate
+                    ? "Send your first message"
+                    : "No messages to display"}
               </p>
-              <Link
-                to="/messages/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4" />
-                Compose Message
-              </Link>
+              {canCreate && (
+                <Link
+                  to="/messages/new"
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  <Plus className="h-4 w-4" />
+                  Compose Message
+                </Link>
+              )}
             </div>
           )}
         </div>
@@ -168,15 +184,19 @@ function MessagesLayout() {
             </div>
             <h2 className="text-lg font-semibold mb-2">Select a message</h2>
             <p className="text-sm text-muted-foreground mb-4">
-              Choose a message from the list to view details, or compose a new one.
+              {canCreate
+                ? "Choose a message from the list to view details, or compose a new one."
+                : "Choose a message from the list to view details."}
             </p>
-            <Link
-              to="/messages/new"
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              Compose Message
-            </Link>
+            {canCreate && (
+              <Link
+                to="/messages/new"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4" />
+                Compose Message
+              </Link>
+            )}
           </div>
         )}
       </div>

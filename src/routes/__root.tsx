@@ -16,7 +16,7 @@ import {
   Users,
   BarChart3,
 } from "lucide-react";
-import { useSession, signOut } from "../lib/auth-client";
+import { useSession, signOut, SessionProvider } from "../lib/auth-client";
 
 import appCss from "../styles.css?url";
 
@@ -59,44 +59,46 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="h-full">
-        <div className="flex h-full">
-          {/* Sidebar */}
-          <aside className="hidden w-64 flex-col border-r bg-card lg:flex">
-            <div className="flex h-16 items-center gap-2 border-b px-6">
-              <Bell className="h-6 w-6 text-primary" />
-              <span className="text-lg font-bold">UTA Notify</span>
-            </div>
-            <nav className="flex-1 space-y-1 p-4">
-              <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>
-                Dashboard
-              </NavLink>
-              <NavLink to="/incidents" icon={<AlertTriangle className="h-4 w-4" />}>
-                Incidents
-              </NavLink>
-              <NavLink to="/messages" icon={<MessageSquare className="h-4 w-4" />}>
-                Messages
-              </NavLink>
-              <NavLink to="/templates" icon={<FileText className="h-4 w-4" />}>
-                Templates
-              </NavLink>
-              <NavLink to="/subscribers" icon={<Users className="h-4 w-4" />}>
-                Subscribers
-              </NavLink>
-              <NavLink to="/reports" icon={<BarChart3 className="h-4 w-4" />}>
-                Reports
-              </NavLink>
-              <div className="pt-4">
-                <NavLink to="/settings" icon={<Settings className="h-4 w-4" />}>
-                  Settings
-                </NavLink>
+        <SessionProvider>
+          <div className="flex h-full">
+            {/* Sidebar */}
+            <aside className="hidden w-64 flex-col border-r bg-card lg:flex">
+              <div className="flex h-16 items-center gap-2 border-b px-6">
+                <Bell className="h-6 w-6 text-primary" />
+                <span className="text-lg font-bold">UTA Notify</span>
               </div>
-            </nav>
-            <UserCard />
-          </aside>
+              <nav className="flex-1 space-y-1 p-4">
+                <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>
+                  Dashboard
+                </NavLink>
+                <NavLink to="/incidents" icon={<AlertTriangle className="h-4 w-4" />}>
+                  Incidents
+                </NavLink>
+                <NavLink to="/messages" icon={<MessageSquare className="h-4 w-4" />}>
+                  Messages
+                </NavLink>
+                <NavLink to="/templates" icon={<FileText className="h-4 w-4" />}>
+                  Templates
+                </NavLink>
+                <NavLink to="/subscribers" icon={<Users className="h-4 w-4" />}>
+                  Subscribers
+                </NavLink>
+                <NavLink to="/reports" icon={<BarChart3 className="h-4 w-4" />}>
+                  Reports
+                </NavLink>
+                <div className="pt-4">
+                  <NavLink to="/settings" icon={<Settings className="h-4 w-4" />}>
+                    Settings
+                  </NavLink>
+                </div>
+              </nav>
+              <UserCard />
+            </aside>
 
-          {/* Main content */}
-          <main className="flex-1 overflow-hidden">{children}</main>
-        </div>
+            {/* Main content */}
+            <main className="flex-1 overflow-hidden">{children}</main>
+          </div>
+        </SessionProvider>
         <Scripts />
       </body>
     </html>
