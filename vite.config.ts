@@ -16,4 +16,19 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  resolve: {
+    conditions: ["browser", "module", "jsnext:main", "jsnext"],
+  },
+  environments: {
+    client: {
+      build: {
+        rollupOptions: {
+          external: [
+            "cloudflare:workers",
+            /^node:/,
+          ],
+        },
+      },
+    },
+  },
 });
