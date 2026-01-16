@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Bell,
   Mail,
@@ -10,22 +10,50 @@ import {
   Key,
   Loader2,
   Check,
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Users,
 } from "lucide-react";
 import {
   getNotificationSettings,
   updateNotificationSettings,
 } from "../server/settings";
+import {
+  getUsers,
+  getUserStats,
+  createUser,
+  updateUser,
+  deleteUser,
+} from "../server/users";
+import { getCurrentUserProfile } from "../server/users";
+import { requireAuthFn } from "../server/auth";
+import {
+  ROLE_LABELS,
+  ROLE_DESCRIPTIONS,
+  hasPermission,
+} from "../lib/permissions";
+import type { User } from "../lib/auth";
 
 export const Route = createFileRoute("/settings")({
+  beforeLoad: async () => {
+    await requireAuthFn();
+  },
   loader: async () => {
-    const settings = await getNotificationSettings();
-    return { settings };
+    const [settings, usersData, userStats, currentUserProfile] = await Promise.all([
+      getNotificationSettings(),
+      getUsers({ data: {} }).catch(() => ({ users: [], total: 0 })),
+      getUserStats().catch(() => ({ total: 0, byRole: { admin: 0, editor: 0, operator: 0, viewer: 0 }, activeLastWeek: 0 })),
+      getCurrentUserProfile().catch(() => ({ user: null, permissions: [] })),
+    ]);
+    return { settings, usersData, userStats, currentUserProfile };
   },
   component: SettingsPage,
 });
 
 function SettingsPage() {
-  const { settings } = Route.useLoaderData();
+  const { settings, usersData, userStats, currentUserProfile } = Route.useLoaderData();
   const [activeTab, setActiveTab] = useState("notifications");
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -40,6 +68,19 @@ function SettingsPage() {
     quietHoursEnd: settings.quietHoursEnd,
   });
 
+  // User management state
+  const [users, setUsers] = useState(usersData.users || []);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userForm, setUserForm] = useState({ email: "", name: "", role: "viewer" as User["role"] });
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [userError, setUserError] = useState<string | null>(null);
+
+  const canManageUsers = currentUserProfile.user && hasPermission(currentUserProfile.user, "users.view");
+  const canCreateUsers = currentUserProfile.user && hasPermission(currentUserProfile.user, "users.create");
+  const canEditUsers = currentUserProfile.user && hasPermission(currentUserProfile.user, "users.edit");
+  const canDeleteUsers = currentUserProfile.user && hasPermission(currentUserProfile.user, "users.delete");
+
   const handleSave = async () => {
     setIsSaving(true);
     setSaved(false);
@@ -52,6 +93,74 @@ function SettingsPage() {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const refreshUsers = async () => {
+    setIsLoadingUsers(true);
+    try {
+      const result = await getUsers({ data: {} });
+      setUsers(result.users || []);
+    } catch (err) {
+      console.error("Failed to refresh users:", err);
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  };
+
+  const handleCreateUser = async () => {
+    setUserError(null);
+    try {
+      await createUser({ data: userForm });
+      setShowUserModal(false);
+      setUserForm({ email: "", name: "", role: "viewer" });
+      await refreshUsers();
+    } catch (err: any) {
+      setUserError(err.message || "Failed to create user");
+    }
+  };
+
+  const handleUpdateUser = async () => {
+    if (!editingUser) return;
+    setUserError(null);
+    try {
+      await updateUser({
+        data: {
+          id: editingUser.id,
+          name: userForm.name,
+          role: userForm.role,
+        },
+      });
+      setShowUserModal(false);
+      setEditingUser(null);
+      setUserForm({ email: "", name: "", role: "viewer" });
+      await refreshUsers();
+    } catch (err: any) {
+      setUserError(err.message || "Failed to update user");
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await deleteUser({ data: { id: userId } });
+      await refreshUsers();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete user");
+    }
+  };
+
+  const openEditModal = (user: User) => {
+    setEditingUser(user);
+    setUserForm({ email: user.email, name: user.name, role: user.role });
+    setUserError(null);
+    setShowUserModal(true);
+  };
+
+  const openCreateModal = () => {
+    setEditingUser(null);
+    setUserForm({ email: "", name: "", role: "viewer" });
+    setUserError(null);
+    setShowUserModal(true);
   };
 
   const tabs = [
@@ -235,7 +344,117 @@ function SettingsPage() {
             </div>
           )}
 
-          {activeTab !== "notifications" && (
+          {activeTab === "access" && (
+            <div className="space-y-6">
+              {/* User Stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="rounded-xl border bg-card p-4">
+                  <div className="text-2xl font-bold">{userStats.total}</div>
+                  <div className="text-sm text-muted-foreground">Total Users</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                  <div className="text-2xl font-bold">{userStats.byRole.admin}</div>
+                  <div className="text-sm text-muted-foreground">Admins</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                  <div className="text-2xl font-bold">{userStats.byRole.editor + userStats.byRole.operator}</div>
+                  <div className="text-sm text-muted-foreground">Editors/Operators</div>
+                </div>
+                <div className="rounded-xl border bg-card p-4">
+                  <div className="text-2xl font-bold">{userStats.activeLastWeek}</div>
+                  <div className="text-sm text-muted-foreground">Active This Week</div>
+                </div>
+              </div>
+
+              {/* User List */}
+              <div className="rounded-xl border bg-card">
+                <div className="border-b p-4 flex items-center justify-between">
+                  <h2 className="font-semibold flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    User Management
+                  </h2>
+                  {canCreateUsers && (
+                    <button
+                      onClick={openCreateModal}
+                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add User
+                    </button>
+                  )}
+                </div>
+                <div className="divide-y">
+                  {isLoadingUsers ? (
+                    <div className="flex items-center justify-center p-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : users.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      No users found
+                    </div>
+                  ) : (
+                    users.map((user: User) => (
+                      <div key={user.id} className="flex items-center justify-between p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-sm font-medium text-primary">
+                              {user.name.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-sm text-muted-foreground">{user.email}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
+                            {ROLE_LABELS[user.role]}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            {canEditUsers && (
+                              <button
+                                onClick={() => openEditModal(user)}
+                                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </button>
+                            )}
+                            {canDeleteUsers && currentUserProfile.user?.id !== user.id && (
+                              <button
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Role Descriptions */}
+              <div className="rounded-xl border bg-card">
+                <div className="border-b p-4">
+                  <h2 className="font-semibold">Role Descriptions</h2>
+                </div>
+                <div className="p-4 space-y-3">
+                  {(Object.keys(ROLE_LABELS) as User["role"][]).map((role) => (
+                    <div key={role} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getRoleBadgeColor(role)}`}>
+                        {ROLE_LABELS[role]}
+                      </span>
+                      <p className="text-sm text-muted-foreground">{ROLE_DESCRIPTIONS[role]}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab !== "notifications" && activeTab !== "access" && (
             <div className="rounded-xl border bg-card">
               <div className="border-b p-4">
                 <h2 className="font-semibold">
@@ -259,8 +478,100 @@ function SettingsPage() {
           )}
         </div>
       </div>
+
+      {/* User Modal */}
+      {showUserModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-xl border shadow-lg w-full max-w-md mx-4">
+            <div className="border-b p-4 flex items-center justify-between">
+              <h3 className="font-semibold">
+                {editingUser ? "Edit User" : "Add New User"}
+              </h3>
+              <button
+                onClick={() => setShowUserModal(false)}
+                className="p-1 rounded-lg hover:bg-accent"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              {userError && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                  {userError}
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-medium">Email</label>
+                <input
+                  type="email"
+                  value={userForm.email}
+                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                  disabled={!!editingUser}
+                  placeholder="user@example.com"
+                  className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Name</label>
+                <input
+                  type="text"
+                  value={userForm.name}
+                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                  placeholder="Full Name"
+                  className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Role</label>
+                <select
+                  value={userForm.role}
+                  onChange={(e) => setUserForm({ ...userForm, role: e.target.value as User["role"] })}
+                  className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                >
+                  <option value="viewer">Viewer</option>
+                  <option value="operator">Operator</option>
+                  <option value="editor">Editor</option>
+                  <option value="admin">Administrator</option>
+                </select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {ROLE_DESCRIPTIONS[userForm.role]}
+                </p>
+              </div>
+            </div>
+            <div className="border-t p-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowUserModal(false)}
+                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={editingUser ? handleUpdateUser : handleCreateUser}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+              >
+                {editingUser ? "Save Changes" : "Create User"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function getRoleBadgeColor(role: User["role"]): string {
+  switch (role) {
+    case "admin":
+      return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400";
+    case "editor":
+      return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400";
+    case "operator":
+      return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400";
+    case "viewer":
+      return "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
 }
 
 interface ToggleSettingProps {

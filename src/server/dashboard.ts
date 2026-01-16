@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getDB, getBucket } from "../utils/cloudflare";
+import { requirePermission } from "../lib/auth";
 
 /**
  * Dashboard server functions
@@ -43,6 +44,8 @@ export interface IncidentSummary {
  * Get dashboard statistics
  */
 export const getDashboardStats = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("incidents.view");
+
   let db: D1Database;
   try {
     db = getDB();
@@ -122,6 +125,7 @@ export const getDashboardStats = createServerFn({ method: "GET" }).handler(async
  * Get recent activity for the dashboard
  */
 export const getRecentActivity = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("incidents.view");
   const db = getDB();
 
   try {
@@ -198,6 +202,7 @@ export const getRecentActivity = createServerFn({ method: "GET" }).handler(async
  * Get active incidents for dashboard display
  */
 export const getActiveIncidentsSummary = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("incidents.view");
   const db = getDB();
 
   try {
@@ -229,6 +234,7 @@ export const getActiveIncidentsSummary = createServerFn({ method: "GET" }).handl
  * Get channel health status
  */
 export const getChannelHealth = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("incidents.view");
   const db = getDB();
 
   try {
@@ -259,6 +265,7 @@ export const getChannelHealth = createServerFn({ method: "GET" }).handler(async 
  * Get incidents by severity for charts
  */
 export const getIncidentsBySeverity = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("incidents.view");
   const db = getDB();
 
   try {
@@ -289,6 +296,7 @@ export const getIncidentsBySeverity = createServerFn({ method: "GET" }).handler(
  * Get messages by channel for charts
  */
 export const getMessagesByChannel = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("messages.view");
   const db = getDB();
 
   try {
@@ -314,6 +322,7 @@ export const getMessagesByChannel = createServerFn({ method: "GET" }).handler(as
  * Get storage usage from R2
  */
 export const getStorageUsage = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("settings.view");
   try {
     const bucket = getBucket();
     const objects = await bucket.list({ prefix: "attachments/" });

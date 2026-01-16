@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
-import { requireAuth, getCurrentUser } from "../lib/auth";
+import { requirePermission, getCurrentUser } from "../lib/auth";
+import { hasPermission } from "../lib/permissions";
 
 /**
  * Incident server functions
@@ -98,6 +99,7 @@ function generateId(prefix: string): string {
 export const getIncidents = createServerFn({ method: "GET" })
   .inputValidator(GetIncidentsInput)
   .handler(async ({ data }) => {
+    await requirePermission("incidents.view");
     const db = getDB();
 
     let query = `SELECT * FROM incidents WHERE 1=1`;
@@ -127,6 +129,7 @@ export const getIncidents = createServerFn({ method: "GET" })
 export const getIncident = createServerFn({ method: "GET" })
   .inputValidator(GetIncidentInput)
   .handler(async ({ data }) => {
+    await requirePermission("incidents.view");
     const db = getDB();
 
     const result = await db
@@ -147,9 +150,9 @@ export const getIncident = createServerFn({ method: "GET" })
 export const createIncident = createServerFn({ method: "POST" })
   .inputValidator(CreateIncidentInput)
   .handler(async ({ data }) => {
+    const auth = await requirePermission("incidents.create");
     const db = getDB();
-    const user = await getCurrentUser();
-    const userId = user?.id || "usr_admin";
+    const userId = auth.user.id;
 
     const id = generateId("inc");
 
@@ -190,7 +193,31 @@ export const createIncident = createServerFn({ method: "POST" })
 export const updateIncident = createServerFn({ method: "POST" })
   .inputValidator(UpdateIncidentInput)
   .handler(async ({ data }) => {
+    // Base permission to edit incidents
+    const auth = await requirePermission("incidents.edit");
     const db = getDB();
+
+    // Check status-specific permissions
+    if (data.status !== undefined) {
+      // Publishing (activating) an incident requires publish permission
+      if (data.status === "active") {
+        if (!hasPermission(auth.user, "incidents.publish")) {
+          throw new Error("Forbidden: Missing permission to publish incidents");
+        }
+      }
+      // Resolving an incident requires resolve permission
+      if (data.status === "resolved") {
+        if (!hasPermission(auth.user, "incidents.resolve")) {
+          throw new Error("Forbidden: Missing permission to resolve incidents");
+        }
+      }
+      // Archiving an incident requires archive permission
+      if (data.status === "archived") {
+        if (!hasPermission(auth.user, "incidents.archive")) {
+          throw new Error("Forbidden: Missing permission to archive incidents");
+        }
+      }
+    }
 
     // Build dynamic update query
     const updates: string[] = [];
@@ -263,6 +290,7 @@ export const updateIncident = createServerFn({ method: "POST" })
 export const deleteIncident = createServerFn({ method: "POST" })
   .inputValidator(DeleteIncidentInput)
   .handler(async ({ data }) => {
+    await requirePermission("incidents.delete");
     const db = getDB();
 
     const result = await db
@@ -281,6 +309,7 @@ export const deleteIncident = createServerFn({ method: "POST" })
  * Get active incidents for dashboard
  */
 export const getActiveIncidents = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("incidents.view");
   const db = getDB();
 
   const result = await db

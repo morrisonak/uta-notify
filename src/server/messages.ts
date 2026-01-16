@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
-import { getCurrentUser } from "../lib/auth";
+import { requirePermission } from "../lib/auth";
 
 /**
  * Message server functions
@@ -89,6 +89,7 @@ function generateId(prefix: string): string {
 export const getMessages = createServerFn({ method: "GET" })
   .inputValidator(GetMessagesInput)
   .handler(async ({ data }) => {
+    await requirePermission("messages.view");
     const db = getDB();
 
     let query = `SELECT * FROM messages WHERE 1=1`;
@@ -113,6 +114,7 @@ export const getMessages = createServerFn({ method: "GET" })
 export const getMessage = createServerFn({ method: "GET" })
   .inputValidator(GetMessageInput)
   .handler(async ({ data }) => {
+    await requirePermission("messages.view");
     const db = getDB();
 
     const result = await db
@@ -133,9 +135,9 @@ export const getMessage = createServerFn({ method: "GET" })
 export const createMessage = createServerFn({ method: "POST" })
   .inputValidator(CreateMessageInput)
   .handler(async ({ data }) => {
+    const auth = await requirePermission("messages.create");
     const db = getDB();
-    const user = await getCurrentUser();
-    const userId = user?.id || "usr_admin";
+    const userId = auth.user.id;
 
     // Get current incident version
     const incident = await db
@@ -180,6 +182,7 @@ export const createMessage = createServerFn({ method: "POST" })
 export const updateMessage = createServerFn({ method: "POST" })
   .inputValidator(UpdateMessageInput)
   .handler(async ({ data }) => {
+    await requirePermission("messages.edit");
     const db = getDB();
 
     const updates: string[] = [];
@@ -216,6 +219,7 @@ export const updateMessage = createServerFn({ method: "POST" })
 export const deleteMessage = createServerFn({ method: "POST" })
   .inputValidator(DeleteMessageInput)
   .handler(async ({ data }) => {
+    await requirePermission("messages.delete");
     const db = getDB();
 
     const result = await db
@@ -236,6 +240,7 @@ export const deleteMessage = createServerFn({ method: "POST" })
 export const getMessageDeliveries = createServerFn({ method: "GET" })
   .inputValidator(GetMessageInput)
   .handler(async ({ data }) => {
+    await requirePermission("messages.view");
     const db = getDB();
 
     const result = await db
@@ -256,6 +261,7 @@ export const getMessageDeliveries = createServerFn({ method: "GET" })
  * Get messages sent today
  */
 export const getMessagesToday = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("messages.view");
   const db = getDB();
   const today = new Date().toISOString().split("T")[0];
 
@@ -276,6 +282,7 @@ export const getMessagesToday = createServerFn({ method: "GET" }).handler(async 
  * Get message statistics
  */
 export const getMessageStats = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("messages.view");
   const db = getDB();
   const today = new Date().toISOString().split("T")[0];
 

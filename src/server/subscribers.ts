@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
+import { requirePermission } from "../lib/auth";
 
 /**
  * Subscriber server functions
@@ -115,6 +116,7 @@ function generateId(prefix: string): string {
 export const getSubscribers = createServerFn({ method: "GET" })
   .inputValidator(GetSubscribersInput)
   .handler(async ({ data }) => {
+    await requirePermission("subscribers.view");
     const db = getDB();
 
     let query = `SELECT * FROM subscribers WHERE 1=1`;
@@ -153,6 +155,7 @@ export const getSubscribers = createServerFn({ method: "GET" })
 export const getSubscriber = createServerFn({ method: "GET" })
   .inputValidator(GetSubscriberInput)
   .handler(async ({ data }) => {
+    await requirePermission("subscribers.view");
     const db = getDB();
 
     const result = await db
@@ -173,6 +176,7 @@ export const getSubscriber = createServerFn({ method: "GET" })
 export const createSubscriber = createServerFn({ method: "POST" })
   .inputValidator(CreateSubscriberInput)
   .handler(async ({ data }) => {
+    await requirePermission("subscribers.create");
     const db = getDB();
 
     // Require at least one contact method
@@ -217,6 +221,7 @@ export const createSubscriber = createServerFn({ method: "POST" })
 export const updateSubscriber = createServerFn({ method: "POST" })
   .inputValidator(UpdateSubscriberInput)
   .handler(async ({ data }) => {
+    await requirePermission("subscribers.edit");
     const db = getDB();
 
     const updates: string[] = [];
@@ -270,6 +275,7 @@ export const updateSubscriber = createServerFn({ method: "POST" })
 export const deleteSubscriber = createServerFn({ method: "POST" })
   .inputValidator(DeleteSubscriberInput)
   .handler(async ({ data }) => {
+    await requirePermission("subscribers.delete");
     const db = getDB();
 
     const result = await db
@@ -288,6 +294,7 @@ export const deleteSubscriber = createServerFn({ method: "POST" })
  * Get subscriber statistics by channel
  */
 export const getSubscriberStats = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("subscribers.view");
   const db = getDB();
 
   const [total, email, sms, push, active, unsubscribed] = await Promise.all([

@@ -19,8 +19,12 @@ import {
   getTopAffectedRoutes,
   exportIncidentsCSV,
 } from "../server/reports";
+import { requireAuthFn } from "../server/auth";
 
 export const Route = createFileRoute("/reports")({
+  beforeLoad: async () => {
+    await requireAuthFn();
+  },
   loader: async () => {
     const [stats, overTime, bySeverity, byMode, topRoutes] = await Promise.all([
       getReportStats({ data: {} }),

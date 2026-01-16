@@ -12,8 +12,12 @@ import {
 } from "lucide-react";
 import { getDashboardStats, getIncidents, getRecentActivity } from "../lib/server-functions";
 import { formatRelativeTime } from "../lib/utils";
+import { requireAuthFn } from "../server/auth";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    await requireAuthFn();
+  },
   loader: async () => {
     try {
       const [stats, incidentsData, activityData] = await Promise.all([

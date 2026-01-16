@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
+import { requirePermission } from "../lib/auth";
 
 /**
  * Reports and Analytics server functions
@@ -40,6 +41,7 @@ function getDefaultDateRange() {
 export const getReportStats = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.view");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }
@@ -100,6 +102,7 @@ export const getReportStats = createServerFn({ method: "GET" })
 export const getIncidentsOverTime = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.view");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }
@@ -127,6 +130,7 @@ export const getIncidentsOverTime = createServerFn({ method: "GET" })
 export const getMessagesByChannel = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.view");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }
@@ -155,6 +159,7 @@ export const getMessagesByChannel = createServerFn({ method: "GET" })
 export const getIncidentsBySeverity = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.view");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }
@@ -188,6 +193,7 @@ export const getIncidentsBySeverity = createServerFn({ method: "GET" })
 export const getIncidentsByMode = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.view");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }
@@ -229,6 +235,7 @@ export const getIncidentsByMode = createServerFn({ method: "GET" })
 export const getDeliveryPerformance = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.view");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }
@@ -258,6 +265,7 @@ export const getDeliveryPerformance = createServerFn({ method: "GET" })
 export const getSubscriberGrowth = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.view");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }
@@ -286,6 +294,7 @@ export const getSubscriberGrowth = createServerFn({ method: "GET" })
 export const getTopAffectedRoutes = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.view");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }
@@ -327,6 +336,7 @@ export const getTopAffectedRoutes = createServerFn({ method: "GET" })
 export const exportIncidentsCSV = createServerFn({ method: "GET" })
   .inputValidator(DateRangeInput)
   .handler(async ({ data }) => {
+    await requirePermission("reports.export");
     const db = getDB();
     const { startDate, endDate } = data.startDate && data.endDate
       ? { startDate: data.startDate, endDate: data.endDate }

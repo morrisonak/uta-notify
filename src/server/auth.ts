@@ -1,19 +1,15 @@
 import { createServerFn } from "@tanstack/react-start";
+import { redirect } from "@tanstack/react-router";
 import { z } from "zod";
 import {
   signIn,
   signOut,
-  validateSession,
-  getSessionToken,
-  createSession,
-  getUserByEmail,
-  setSessionCookie,
-  clearSessionCookie,
+  getCurrentUser,
 } from "../lib/auth";
 
 /**
  * Auth server functions
- * Exposes authentication operations as TanStack server functions
+ * Uses TanStack Start's built-in encrypted session cookies
  */
 
 // ============================================
@@ -21,44 +17,35 @@ import {
 // ============================================
 
 /**
- * Get current session
+ * Get current session/user
  */
 export const getSessionFn = createServerFn({ method: "GET" }).handler(async () => {
-  const sessionToken = getSessionToken();
-
-  if (!sessionToken) {
-    return { user: null, session: null };
-  }
-
-  const result = await validateSession(sessionToken);
-
-  if (!result) {
-    return { user: null, session: null };
-  }
-
-  return { user: result.user, session: result.session };
+  const user = await getCurrentUser();
+  return { user };
 });
 
 /**
- * Sign in with email (development mode)
+ * Check if user is authenticated - for route protection
+ * Throws redirect to /login if not authenticated
+ */
+export const requireAuthFn = createServerFn({ method: "GET" }).handler(async () => {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    throw redirect({ to: "/login" });
+  }
+
+  return { user };
+});
+
+/**
+ * Sign in with email
  */
 export const signInFn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ email: z.string().email() }))
   .handler(async ({ data }) => {
-    const user = await getUserByEmail(data.email);
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const session = await createSession(user.id);
-
-    // Return session cookie header for client to set
-    return {
-      user,
-      session,
-      setCookie: setSessionCookie(session.id),
-    };
+    const result = await signIn(data.email);
+    return { user: result.user };
   });
 
 /**
@@ -66,9 +53,5 @@ export const signInFn = createServerFn({ method: "POST" })
  */
 export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
   await signOut();
-
-  return {
-    success: true,
-    setCookie: clearSessionCookie(),
-  };
+  return { success: true };
 });

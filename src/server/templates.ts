@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
-import { getCurrentUser } from "../lib/auth";
+import { requirePermission } from "../lib/auth";
 
 /**
  * Template server functions
@@ -89,6 +89,7 @@ function generateId(prefix: string): string {
 export const getTemplates = createServerFn({ method: "GET" })
   .inputValidator(GetTemplatesInput)
   .handler(async ({ data }) => {
+    await requirePermission("templates.view");
     const db = getDB();
 
     let query = `SELECT * FROM templates WHERE 1=1`;
@@ -123,6 +124,7 @@ export const getTemplates = createServerFn({ method: "GET" })
 export const getTemplate = createServerFn({ method: "GET" })
   .inputValidator(GetTemplateInput)
   .handler(async ({ data }) => {
+    await requirePermission("templates.view");
     const db = getDB();
 
     const result = await db
@@ -143,9 +145,9 @@ export const getTemplate = createServerFn({ method: "GET" })
 export const createTemplate = createServerFn({ method: "POST" })
   .inputValidator(CreateTemplateInput)
   .handler(async ({ data }) => {
+    const auth = await requirePermission("templates.create");
     const db = getDB();
-    const user = await getCurrentUser();
-    const userId = user?.id || "usr_admin";
+    const userId = auth.user.id;
 
     const id = generateId("tpl");
 
@@ -201,6 +203,7 @@ export const createTemplate = createServerFn({ method: "POST" })
 export const updateTemplate = createServerFn({ method: "POST" })
   .inputValidator(UpdateTemplateInput)
   .handler(async ({ data }) => {
+    await requirePermission("templates.edit");
     const db = getDB();
 
     const updates: string[] = ["updated_at = datetime('now')"];
@@ -283,6 +286,7 @@ export const updateTemplate = createServerFn({ method: "POST" })
 export const deleteTemplate = createServerFn({ method: "POST" })
   .inputValidator(DeleteTemplateInput)
   .handler(async ({ data }) => {
+    await requirePermission("templates.delete");
     const db = getDB();
 
     const result = await db
@@ -303,9 +307,9 @@ export const deleteTemplate = createServerFn({ method: "POST" })
 export const duplicateTemplate = createServerFn({ method: "POST" })
   .inputValidator(GetTemplateInput)
   .handler(async ({ data }) => {
+    const auth = await requirePermission("templates.create");
     const db = getDB();
-    const user = await getCurrentUser();
-    const userId = user?.id || "usr_admin";
+    const userId = auth.user.id;
 
     // Get existing template
     const existing = await db
@@ -351,6 +355,7 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
  * Get template statistics
  */
 export const getTemplateStats = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("templates.view");
   const db = getDB();
 
   const [total, byChannel, byType] = await Promise.all([
@@ -387,6 +392,7 @@ const RenderTemplateInput = z.object({
 export const renderTemplate = createServerFn({ method: "POST" })
   .inputValidator(RenderTemplateInput)
   .handler(async ({ data }) => {
+    await requirePermission("templates.view");
     const db = getDB();
 
     const template = await db
@@ -409,12 +415,13 @@ export const renderTemplate = createServerFn({ method: "POST" })
   });
 
 /**
- * Seed default templates
+ * Seed default templates (admin only)
  */
 export const seedDefaultTemplates = createServerFn({ method: "POST" }).handler(
   async () => {
+    const auth = await requirePermission("templates.create");
     const db = getDB();
-    const userId = "usr_admin";
+    const userId = auth.user.id;
 
     const defaultTemplates = [
       // Service Disruption Templates
@@ -706,6 +713,7 @@ We will continue to provide updates. Thank you for your patience.`,
 export const getTemplatesForIncident = createServerFn({ method: "GET" })
   .inputValidator(z.object({ incidentType: z.string() }))
   .handler(async ({ data }) => {
+    await requirePermission("templates.view");
     const db = getDB();
 
     const result = await db

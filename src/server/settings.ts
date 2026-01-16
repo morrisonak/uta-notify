@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
-import { getCurrentUser } from "../lib/auth";
+import { requirePermission } from "../lib/auth";
 
 /**
  * Settings server functions
@@ -57,6 +57,7 @@ const UpdateSettingsInput = z.object({
 export const getSetting = createServerFn({ method: "GET" })
   .inputValidator(GetSettingInput)
   .handler(async ({ data }) => {
+    await requirePermission("settings.view");
     const db = getDB();
 
     const result = await db
@@ -84,6 +85,7 @@ export const getSetting = createServerFn({ method: "GET" })
 export const getSettings = createServerFn({ method: "GET" })
   .inputValidator(GetSettingsInput)
   .handler(async ({ data }) => {
+    await requirePermission("settings.view");
     const db = getDB();
 
     let query = "SELECT * FROM settings";
@@ -118,9 +120,9 @@ export const getSettings = createServerFn({ method: "GET" })
 export const updateSetting = createServerFn({ method: "POST" })
   .inputValidator(UpdateSettingInput)
   .handler(async ({ data }) => {
+    const auth = await requirePermission("settings.edit");
     const db = getDB();
-    const user = await getCurrentUser();
-    const userId = user?.id || null;
+    const userId = auth.user.id;
 
     const valueStr =
       typeof data.value === "string"
@@ -154,9 +156,9 @@ export const updateSetting = createServerFn({ method: "POST" })
 export const updateSettings = createServerFn({ method: "POST" })
   .inputValidator(UpdateSettingsInput)
   .handler(async ({ data }) => {
+    const auth = await requirePermission("settings.edit");
     const db = getDB();
-    const user = await getCurrentUser();
-    const userId = user?.id || null;
+    const userId = auth.user.id;
 
     // Use a transaction via batch
     const statements = data.settings.map((s) => {
@@ -190,6 +192,7 @@ export const updateSettings = createServerFn({ method: "POST" })
 export const deleteSetting = createServerFn({ method: "POST" })
   .inputValidator(GetSettingInput)
   .handler(async ({ data }) => {
+    await requirePermission("settings.edit");
     const db = getDB();
 
     const result = await db
@@ -209,6 +212,7 @@ export const deleteSetting = createServerFn({ method: "POST" })
  */
 export const getNotificationSettings = createServerFn({ method: "GET" }).handler(
   async () => {
+    await requirePermission("settings.view");
     const db = getDB();
 
     const result = await db
@@ -255,9 +259,9 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data }) => {
+    const auth = await requirePermission("settings.edit");
     const db = getDB();
-    const user = await getCurrentUser();
-    const userId = user?.id || null;
+    const userId = auth.user.id;
 
     const settingsToUpdate: Array<{ key: string; value: string }> = [];
 
@@ -341,6 +345,7 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
  * Get app info settings
  */
 export const getAppInfo = createServerFn({ method: "GET" }).handler(async () => {
+  await requirePermission("settings.view");
   const db = getDB();
 
   const result = await db
