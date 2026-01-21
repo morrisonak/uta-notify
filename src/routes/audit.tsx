@@ -16,12 +16,12 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { getAuditLogs, getAuditStats, type AuditLogEntry } from "../server/audit";
-import { requireAuthFn } from "../server/auth";
+import { requirePermissionFn } from "../server/auth";
 import { formatRelativeTime } from "../lib/utils";
 
 export const Route = createFileRoute("/audit")({
   beforeLoad: async () => {
-    await requireAuthFn();
+    await requirePermissionFn({ data: { permission: "audit.view" } });
   },
   loader: async () => {
     const [logsData, stats] = await Promise.all([

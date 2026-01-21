@@ -6,6 +6,7 @@ import {
   signOut,
   getCurrentUser,
 } from "../lib/auth";
+import { hasPermission, type Permission } from "../lib/permissions";
 
 /**
  * Auth server functions
@@ -37,6 +38,26 @@ export const requireAuthFn = createServerFn({ method: "GET" }).handler(async () 
 
   return { user };
 });
+
+/**
+ * Check if user has specific permission - for route protection
+ * Throws redirect to /login if not authenticated, or throws error if not authorized
+ */
+export const requirePermissionFn = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ permission: z.string() }))
+  .handler(async ({ data }) => {
+    const user = await getCurrentUser();
+
+    if (!user) {
+      throw redirect({ to: "/login" });
+    }
+
+    if (!hasPermission(user, data.permission as Permission)) {
+      throw new Error(`Forbidden: Missing permission '${data.permission}'`);
+    }
+
+    return { user };
+  });
 
 /**
  * Sign in with email

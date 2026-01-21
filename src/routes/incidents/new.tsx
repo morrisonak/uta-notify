@@ -3,9 +3,13 @@ import { useState, useEffect } from "react";
 import { Loader2, Search, X, FileText } from "lucide-react";
 import { createIncident } from "../../lib/server-functions";
 import { getTemplatesForIncident } from "../../server/templates";
+import { requirePermissionFn } from "../../server/auth";
 import { UTA_ROUTES, TRANSIT_MODES } from "../../data/uta-routes";
 
 export const Route = createFileRoute("/incidents/new")({
+  beforeLoad: async () => {
+    await requirePermissionFn({ data: { permission: "incidents.create" } });
+  },
   component: NewIncidentPage,
 });
 

@@ -3,8 +3,12 @@ import { useState } from "react";
 import { Send, Loader2 } from "lucide-react";
 import { createMessage } from "../../server/messages";
 import { getIncidents } from "../../server/incidents";
+import { requirePermissionFn } from "../../server/auth";
 
 export const Route = createFileRoute("/messages/new")({
+  beforeLoad: async () => {
+    await requirePermissionFn({ data: { permission: "messages.create" } });
+  },
   loader: async () => {
     const incidentsData = await getIncidents({ data: { limit: 100 } });
     return { incidents: incidentsData.incidents };
