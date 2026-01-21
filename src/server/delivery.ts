@@ -337,95 +337,21 @@ async function processChannelDelivery(delivery: {
 }): Promise<{ success: boolean; providerId?: string; response?: unknown; error?: string }> {
   const config = delivery.channel_config ? JSON.parse(delivery.channel_config) : {};
 
-  // Try to get adapter from registry
+  // Get adapter from registry
   const adapter = getAdapter(delivery.channel_type);
 
-  if (adapter) {
-    // Use the proper adapter
-    const result = await adapter.send(
-      delivery.message_content,
-      config.recipients || [],
-      config
-    );
-    return result;
+  if (!adapter) {
+    return { success: false, error: `No adapter found for channel type: ${delivery.channel_type}` };
   }
 
-  // Fallback for channels without adapters yet
-  switch (delivery.channel_type) {
-    case "sms":
-      return await sendSmsDelivery(delivery.message_content, config);
-    case "push":
-      return await sendPushDelivery(delivery.message_content, config);
-    case "twitter":
-      return await sendTwitterDelivery(delivery.message_content, config);
-    case "signage":
-      return await sendSignageDelivery(delivery.message_content, config);
-    default:
-      return { success: false, error: `Unknown channel type: ${delivery.channel_type}` };
-  }
-}
+  // Use the proper adapter
+  const result = await adapter.send(
+    delivery.message_content,
+    config.recipients || [],
+    config
+  );
 
-// ============================================
-// PLACEHOLDER CHANNEL IMPLEMENTATIONS
-// (Will be replaced with proper adapters)
-// ============================================
-
-async function sendSmsDelivery(
-  content: string,
-  config: Record<string, unknown>
-): Promise<{ success: boolean; providerId?: string; response?: unknown; error?: string }> {
-  // TODO: Implement actual SMS sending via Twilio/etc
-  console.log("[SMS] Would send:", content.substring(0, 160));
-
-  return {
-    success: true,
-    providerId: `sms_${Date.now()}`,
-    response: { simulated: true },
-  };
-}
-
-async function sendPushDelivery(
-  content: string,
-  config: Record<string, unknown>
-): Promise<{ success: boolean; providerId?: string; response?: unknown; error?: string }> {
-  // TODO: Implement push notifications via FCM/etc
-  console.log("[PUSH] Would send:", content.substring(0, 100));
-
-  return {
-    success: true,
-    providerId: `push_${Date.now()}`,
-    response: { simulated: true },
-  };
-}
-
-async function sendTwitterDelivery(
-  content: string,
-  config: Record<string, unknown>
-): Promise<{ success: boolean; providerId?: string; response?: unknown; error?: string }> {
-  // TODO: Implement Twitter/X posting
-  // Note: Twitter has 280 char limit
-  const truncated = content.length > 280 ? content.substring(0, 277) + "..." : content;
-  console.log("[TWITTER] Would post:", truncated);
-
-  return {
-    success: true,
-    providerId: `tweet_${Date.now()}`,
-    response: { simulated: true },
-  };
-}
-
-async function sendSignageDelivery(
-  content: string,
-  config: Record<string, unknown>
-): Promise<{ success: boolean; providerId?: string; response?: unknown; error?: string }> {
-  // TODO: Implement digital signage integration
-  console.log("[SIGNAGE] Would display:", content.substring(0, 100));
-
-  return {
-    success: true,
-    providerId: `sign_${Date.now()}`,
-    response: { simulated: true },
-  };
+  return result;
 }
 
 // ============================================
