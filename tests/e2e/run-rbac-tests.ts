@@ -25,10 +25,10 @@ const SITE_URL = urlIndex !== -1 ? args[urlIndex + 1] : "https://uta-notify.jmor
 const SCREENSHOT_DIR = join(import.meta.dir, "rbac-screenshots");
 
 const TEST_USERS = {
-  admin: "admin@uta.org",
-  editor: "editor@uta.org",
-  operator: "operator@uta.org",
-  viewer: "viewer@uta.org",
+  admin: { email: "admin@uta.org", password: "***REDACTED***" },
+  editor: { email: "editor@uta.org", password: "***REDACTED***" },
+  operator: { email: "operator@uta.org", password: "***REDACTED***" },
+  viewer: { email: "viewer@uta.org", password: "***REDACTED***" },
 } as const;
 
 type Role = keyof typeof TEST_USERS;
@@ -140,7 +140,7 @@ function hasPermission(role: Role, permission: string): boolean {
 // BROWSER OPERATIONS
 // ============================================
 
-async function login(page: Page, email: string): Promise<boolean> {
+async function login(page: Page, email: string, password: string): Promise<boolean> {
   try {
     await page.goto(`${SITE_URL}/login`, { waitUntil: "networkidle0", timeout: 30000 });
     await page.waitForSelector('input[type="email"]', { timeout: 10000 });
@@ -150,6 +150,14 @@ async function login(page: Page, email: string): Promise<boolean> {
     if (emailInput) {
       await emailInput.click({ clickCount: 3 });
       await emailInput.type(email, { delay: 20 });
+    }
+
+    // Wait for password field and type password
+    await page.waitForSelector('input[type="password"]', { timeout: 5000 });
+    const passwordInput = await page.$('input[type="password"]');
+    if (passwordInput) {
+      await passwordInput.click({ clickCount: 3 });
+      await passwordInput.type(password, { delay: 20 });
     }
 
     // Submit
@@ -312,14 +320,15 @@ async function runTests(): Promise<TestSummary> {
 
   try {
     for (const role of Object.keys(TEST_USERS) as Role[]) {
-      logSection(`Testing role: ${role.toUpperCase()} (${TEST_USERS[role]})`);
+      const { email, password } = TEST_USERS[role];
+      logSection(`Testing role: ${role.toUpperCase()} (${email})`);
 
       const page = await browser.newPage();
       await page.setViewport({ width: 1280, height: 800 });
 
       // Login
       const loginStart = Date.now();
-      const loggedIn = await login(page, TEST_USERS[role]);
+      const loggedIn = await login(page, email, password);
 
       if (!loggedIn) {
         logFail(`Failed to login as ${role}`);

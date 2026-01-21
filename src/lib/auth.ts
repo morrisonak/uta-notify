@@ -1,10 +1,12 @@
 import { getDB, getEnvVar } from "../utils/cloudflare";
 import { useSession, clearSession } from "@tanstack/react-start/server";
 import type { SessionConfig } from "@tanstack/react-start/server";
+import { hashPassword, verifyPassword, validatePasswordStrength } from "./password";
 
 /**
  * Authentication module for UTA Notify
  * Uses TanStack Start's built-in encrypted session cookies
+ * Supports email/password authentication with PBKDF2 hashing
  */
 
 // ============================================
@@ -18,17 +20,21 @@ export interface User {
   role: "admin" | "editor" | "operator" | "viewer";
   permissions: string | null;
   avatar_url: string | null;
+  password_hash: string | null;
   last_login_at: string | null;
   created_at: string;
   updated_at: string;
 }
+
+/** User without sensitive fields (for client-side use) */
+export type SafeUser = Omit<User, "password_hash">;
 
 export interface SessionData {
   userId: string;
 }
 
 export interface AuthResult {
-  user: User;
+  user: SafeUser;
 }
 
 // Session duration: 7 days
@@ -90,29 +96,45 @@ function generateId(prefix: string): string {
 }
 
 /**
- * Create a new user
+ * Create a new user with password
  */
 export async function createUser(
   email: string,
   name: string,
+  password: string,
   role: User["role"] = "viewer"
-): Promise<User> {
+): Promise<SafeUser> {
+  // Validate password strength
+  const passwordError = validatePasswordStrength(password);
+  if (passwordError) {
+    throw new Error(passwordError);
+  }
+
   const db = getDB();
   const id = generateId("usr");
+  const passwordHash = await hashPassword(password);
 
   await db
     .prepare(
-      `INSERT INTO users (id, email, name, role, created_at, updated_at)
-       VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`
+      `INSERT INTO users (id, email, name, role, password_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
     )
-    .bind(id, email, name, role)
+    .bind(id, email, name, role, passwordHash)
     .run();
 
   const user = await getUserById(id);
   if (!user) {
     throw new Error("Failed to create user");
   }
-  return user;
+  return toSafeUser(user);
+}
+
+/**
+ * Remove sensitive fields from user object
+ */
+export function toSafeUser(user: User): SafeUser {
+  const { password_hash, ...safeUser } = user;
+  return safeUser;
 }
 
 /**
@@ -180,20 +202,21 @@ export async function requireAuth(): Promise<AuthResult> {
     throw new Error("Unauthorized: User not found");
   }
 
-  return { user };
+  return { user: toSafeUser(user) };
 }
 
 /**
  * Get current user if authenticated, null otherwise
  */
-export async function getCurrentUser(): Promise<User | null> {
+export async function getCurrentUser(): Promise<SafeUser | null> {
   const sessionData = await getSessionData();
 
   if (!sessionData?.userId) {
     return null;
   }
 
-  return getUserById(sessionData.userId);
+  const user = await getUserById(sessionData.userId);
+  return user ? toSafeUser(user) : null;
 }
 
 /**
@@ -221,13 +244,25 @@ export async function requireRole(requiredRoles: User["role"][]): Promise<AuthRe
 // ============================================
 
 /**
- * Sign in as a user
+ * Sign in with email and password
  */
-export async function signIn(email: string): Promise<AuthResult> {
+export async function signIn(email: string, password: string): Promise<AuthResult> {
   const user = await getUserByEmail(email);
 
   if (!user) {
-    throw new Error("User not found");
+    // Use generic message to prevent user enumeration
+    throw new Error("Invalid email or password");
+  }
+
+  // Check if user has a password set
+  if (!user.password_hash) {
+    throw new Error("Password not set for this account. Please contact an administrator.");
+  }
+
+  // Verify password
+  const isValid = await verifyPassword(password, user.password_hash);
+  if (!isValid) {
+    throw new Error("Invalid email or password");
   }
 
   // Update last login
@@ -236,7 +271,7 @@ export async function signIn(email: string): Promise<AuthResult> {
   // Set session
   await setSessionData(user.id);
 
-  return { user };
+  return { user: toSafeUser(user) };
 }
 
 /**
@@ -244,6 +279,73 @@ export async function signIn(email: string): Promise<AuthResult> {
  */
 export async function signOut(): Promise<void> {
   await clearSessionData();
+}
+
+/**
+ * Change a user's password
+ */
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Verify current password if user has one set
+  if (user.password_hash) {
+    const isValid = await verifyPassword(currentPassword, user.password_hash);
+    if (!isValid) {
+      throw new Error("Current password is incorrect");
+    }
+  }
+
+  // Validate new password strength
+  const passwordError = validatePasswordStrength(newPassword);
+  if (passwordError) {
+    throw new Error(passwordError);
+  }
+
+  // Hash and store new password
+  const newHash = await hashPassword(newPassword);
+  const db = getDB();
+  await db
+    .prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(newHash, userId)
+    .run();
+}
+
+/**
+ * Set password for a user (admin function, doesn't require current password)
+ */
+export async function setUserPassword(userId: string, newPassword: string): Promise<void> {
+  // Validate new password strength
+  const passwordError = validatePasswordStrength(newPassword);
+  if (passwordError) {
+    throw new Error(passwordError);
+  }
+
+  // Hash and store new password
+  const newHash = await hashPassword(newPassword);
+  const db = getDB();
+  const result = await db
+    .prepare("UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(newHash, userId)
+    .run();
+
+  if (!result.meta.changes) {
+    throw new Error("User not found");
+  }
+}
+
+/**
+ * Check if a user has a password set
+ */
+export async function hasPasswordSet(email: string): Promise<boolean> {
+  const user = await getUserByEmail(email);
+  return user ? !!user.password_hash : false;
 }
 
 // ============================================

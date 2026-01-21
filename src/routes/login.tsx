@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { AlertTriangle, Loader2, LogIn } from "lucide-react";
+import { AlertTriangle, Loader2, LogIn, Eye, EyeOff } from "lucide-react";
 import { signIn, useSession } from "../lib/auth-client";
 
 export const Route = createFileRoute("/login")({
@@ -10,7 +10,9 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const { refetch } = useSession();
-  const [email, setEmail] = useState("admin@uta.org");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +22,7 @@ function LoginPage() {
     setError(null);
 
     try {
-      await signIn(email);
+      await signIn(email, password);
       // Refresh session state before navigating
       await refetch();
       navigate({ to: "/" });
@@ -66,12 +68,43 @@ function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@uta.org"
                 className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                autoComplete="email"
               />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full h-10 rounded-lg border bg-background px-3 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !email || !password}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {isLoading ? (
@@ -82,14 +115,6 @@ function LoginPage() {
               Sign In
             </button>
           </form>
-
-          {/* Development Mode Notice */}
-          <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3">
-            <p className="text-xs text-amber-800">
-              <strong>Development Mode:</strong> Authentication is simplified for development.
-              Enter any existing user email to sign in. Default admin: admin@uta.org
-            </p>
-          </div>
         </div>
 
         {/* Footer */}

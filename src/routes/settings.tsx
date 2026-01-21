@@ -15,6 +15,9 @@ import {
   Trash2,
   X,
   Users,
+  Eye,
+  EyeOff,
+  Lock,
 } from "lucide-react";
 import {
   getNotificationSettings,
@@ -28,7 +31,7 @@ import {
   deleteUser,
 } from "../server/users";
 import { getCurrentUserProfile } from "../server/users";
-import { requireAuthFn } from "../server/auth";
+import { requireAuthFn, changePasswordFn, setUserPasswordFn } from "../server/auth";
 import {
   ROLE_LABELS,
   ROLE_DESCRIPTIONS,
@@ -72,9 +75,18 @@ function SettingsPage() {
   const [users, setUsers] = useState(usersData.users || []);
   const [showUserModal, setShowUserModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [userForm, setUserForm] = useState({ email: "", name: "", role: "viewer" as User["role"] });
+  const [userForm, setUserForm] = useState({ email: "", name: "", role: "viewer" as User["role"], password: "", confirmPassword: "" });
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [userError, setUserError] = useState<string | null>(null);
+  const [resetPasswordMode, setResetPasswordMode] = useState(false);
+
+  // Change password state (for current user)
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePasswordForm, setChangePasswordForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   const canManageUsers = currentUserProfile.user && hasPermission(currentUserProfile.user, "users.view");
   const canCreateUsers = currentUserProfile.user && hasPermission(currentUserProfile.user, "users.create");
@@ -109,10 +121,22 @@ function SettingsPage() {
 
   const handleCreateUser = async () => {
     setUserError(null);
+
+    // Validate passwords match
+    if (userForm.password !== userForm.confirmPassword) {
+      setUserError("Passwords do not match");
+      return;
+    }
+
+    if (userForm.password.length < 8) {
+      setUserError("Password must be at least 8 characters");
+      return;
+    }
+
     try {
-      await createUser({ data: userForm });
+      await createUser({ data: { email: userForm.email, name: userForm.name, role: userForm.role, password: userForm.password } });
       setShowUserModal(false);
-      setUserForm({ email: "", name: "", role: "viewer" });
+      setUserForm({ email: "", name: "", role: "viewer", password: "", confirmPassword: "" });
       await refreshUsers();
     } catch (err: any) {
       setUserError(err.message || "Failed to create user");
@@ -122,6 +146,30 @@ function SettingsPage() {
   const handleUpdateUser = async () => {
     if (!editingUser) return;
     setUserError(null);
+
+    // Handle password reset if in reset mode
+    if (resetPasswordMode) {
+      if (userForm.password !== userForm.confirmPassword) {
+        setUserError("Passwords do not match");
+        return;
+      }
+      if (userForm.password.length < 8) {
+        setUserError("Password must be at least 8 characters");
+        return;
+      }
+      try {
+        await setUserPasswordFn({ data: { userId: editingUser.id, newPassword: userForm.password } });
+        setShowUserModal(false);
+        setEditingUser(null);
+        setResetPasswordMode(false);
+        setUserForm({ email: "", name: "", role: "viewer", password: "", confirmPassword: "" });
+        return;
+      } catch (err: any) {
+        setUserError(err.message || "Failed to reset password");
+        return;
+      }
+    }
+
     try {
       await updateUser({
         data: {
@@ -132,7 +180,7 @@ function SettingsPage() {
       });
       setShowUserModal(false);
       setEditingUser(null);
-      setUserForm({ email: "", name: "", role: "viewer" });
+      setUserForm({ email: "", name: "", role: "viewer", password: "", confirmPassword: "" });
       await refreshUsers();
     } catch (err: any) {
       setUserError(err.message || "Failed to update user");
@@ -151,16 +199,47 @@ function SettingsPage() {
 
   const openEditModal = (user: User) => {
     setEditingUser(user);
-    setUserForm({ email: user.email, name: user.name, role: user.role });
+    setUserForm({ email: user.email, name: user.name, role: user.role, password: "", confirmPassword: "" });
     setUserError(null);
+    setResetPasswordMode(false);
+    setShowPassword(false);
     setShowUserModal(true);
   };
 
   const openCreateModal = () => {
     setEditingUser(null);
-    setUserForm({ email: "", name: "", role: "viewer" });
+    setUserForm({ email: "", name: "", role: "viewer", password: "", confirmPassword: "" });
     setUserError(null);
+    setResetPasswordMode(false);
+    setShowPassword(false);
     setShowUserModal(true);
+  };
+
+  const handleChangePassword = async () => {
+    setChangePasswordError(null);
+    setChangePasswordSuccess(false);
+
+    if (changePasswordForm.newPassword !== changePasswordForm.confirmPassword) {
+      setChangePasswordError("New passwords do not match");
+      return;
+    }
+
+    if (changePasswordForm.newPassword.length < 8) {
+      setChangePasswordError("New password must be at least 8 characters");
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await changePasswordFn({ data: { currentPassword: changePasswordForm.currentPassword, newPassword: changePasswordForm.newPassword } });
+      setChangePasswordSuccess(true);
+      setChangePasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setTimeout(() => setChangePasswordSuccess(false), 3000);
+    } catch (err: any) {
+      setChangePasswordError(err.message || "Failed to change password");
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   const tabs = [
@@ -435,6 +514,75 @@ function SettingsPage() {
                 </div>
               </div>
 
+              {/* Change My Password */}
+              <div className="rounded-xl border bg-card">
+                <div className="border-b p-4">
+                  <h2 className="font-semibold flex items-center gap-2">
+                    <Lock className="h-5 w-5" />
+                    Change My Password
+                  </h2>
+                </div>
+                <div className="p-4 space-y-4">
+                  {changePasswordError && (
+                    <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                      {changePasswordError}
+                    </div>
+                  )}
+                  {changePasswordSuccess && (
+                    <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm">
+                      Password changed successfully!
+                    </div>
+                  )}
+                  <div>
+                    <label className="text-sm font-medium">Current Password</label>
+                    <input
+                      type="password"
+                      value={changePasswordForm.currentPassword}
+                      onChange={(e) => setChangePasswordForm({ ...changePasswordForm, currentPassword: e.target.value })}
+                      placeholder="Enter current password"
+                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">New Password</label>
+                    <input
+                      type="password"
+                      value={changePasswordForm.newPassword}
+                      onChange={(e) => setChangePasswordForm({ ...changePasswordForm, newPassword: e.target.value })}
+                      placeholder="Enter new password"
+                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Must be at least 8 characters with uppercase, lowercase, and number
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={changePasswordForm.confirmPassword}
+                      onChange={(e) => setChangePasswordForm({ ...changePasswordForm, confirmPassword: e.target.value })}
+                      placeholder="Confirm new password"
+                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={isChangingPassword || !changePasswordForm.currentPassword || !changePasswordForm.newPassword}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                  >
+                    {isChangingPassword ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Changing...
+                      </>
+                    ) : (
+                      "Change Password"
+                    )}
+                  </button>
+                </div>
+              </div>
+
               {/* Role Descriptions */}
               <div className="rounded-xl border bg-card">
                 <div className="border-b p-4">
@@ -500,47 +648,154 @@ function SettingsPage() {
                   {userError}
                 </div>
               )}
-              <div>
-                <label className="text-sm font-medium">Email</label>
-                <input
-                  type="email"
-                  value={userForm.email}
-                  onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                  disabled={!!editingUser}
-                  placeholder="user@example.com"
-                  className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm disabled:opacity-50"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Name</label>
-                <input
-                  type="text"
-                  value={userForm.name}
-                  onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                  placeholder="Full Name"
-                  className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Role</label>
-                <select
-                  value={userForm.role}
-                  onChange={(e) => setUserForm({ ...userForm, role: e.target.value as User["role"] })}
-                  className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+
+              {/* Reset Password Mode Toggle for editing */}
+              {editingUser && !resetPasswordMode && (
+                <button
+                  type="button"
+                  onClick={() => setResetPasswordMode(true)}
+                  className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
                 >
-                  <option value="viewer">Viewer</option>
-                  <option value="operator">Operator</option>
-                  <option value="editor">Editor</option>
-                  <option value="admin">Administrator</option>
-                </select>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {ROLE_DESCRIPTIONS[userForm.role]}
-                </p>
-              </div>
+                  <Lock className="h-4 w-4" />
+                  Reset User Password
+                </button>
+              )}
+
+              {/* Password Reset Form */}
+              {editingUser && resetPasswordMode && (
+                <>
+                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                    Setting a new password for {editingUser.email}
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">New Password</label>
+                    <div className="relative mt-1">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={userForm.password}
+                        onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                        placeholder="Enter new password"
+                        className="w-full h-10 rounded-lg border bg-background px-3 pr-10 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Confirm Password</label>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={userForm.confirmPassword}
+                      onChange={(e) => setUserForm({ ...userForm, confirmPassword: e.target.value })}
+                      placeholder="Confirm new password"
+                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetPasswordMode(false);
+                      setUserForm({ ...userForm, password: "", confirmPassword: "" });
+                    }}
+                    className="text-sm text-muted-foreground hover:text-foreground"
+                  >
+                    Cancel password reset
+                  </button>
+                </>
+              )}
+
+              {/* Regular User Fields (hidden in reset password mode) */}
+              {!resetPasswordMode && (
+                <>
+                  <div>
+                    <label className="text-sm font-medium">Email</label>
+                    <input
+                      type="email"
+                      value={userForm.email}
+                      onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                      disabled={!!editingUser}
+                      placeholder="user@example.com"
+                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Name</label>
+                    <input
+                      type="text"
+                      value={userForm.name}
+                      onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                      placeholder="Full Name"
+                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Role</label>
+                    <select
+                      value={userForm.role}
+                      onChange={(e) => setUserForm({ ...userForm, role: e.target.value as User["role"] })}
+                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="operator">Operator</option>
+                      <option value="editor">Editor</option>
+                      <option value="admin">Administrator</option>
+                    </select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {ROLE_DESCRIPTIONS[userForm.role]}
+                    </p>
+                  </div>
+
+                  {/* Password fields for new user only */}
+                  {!editingUser && (
+                    <>
+                      <div>
+                        <label className="text-sm font-medium">Password</label>
+                        <div className="relative mt-1">
+                          <input
+                            type={showPassword ? "text" : "password"}
+                            value={userForm.password}
+                            onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                            placeholder="Enter password"
+                            className="w-full h-10 rounded-lg border bg-background px-3 pr-10 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Must be at least 8 characters with uppercase, lowercase, and number
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Confirm Password</label>
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={userForm.confirmPassword}
+                          onChange={(e) => setUserForm({ ...userForm, confirmPassword: e.target.value })}
+                          placeholder="Confirm password"
+                          className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
             </div>
             <div className="border-t p-4 flex justify-end gap-2">
               <button
-                onClick={() => setShowUserModal(false)}
+                onClick={() => {
+                  setShowUserModal(false);
+                  setResetPasswordMode(false);
+                }}
                 className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent"
               >
                 Cancel
@@ -549,7 +804,7 @@ function SettingsPage() {
                 onClick={editingUser ? handleUpdateUser : handleCreateUser}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
               >
-                {editingUser ? "Save Changes" : "Create User"}
+                {resetPasswordMode ? "Reset Password" : editingUser ? "Save Changes" : "Create User"}
               </button>
             </div>
           </div>

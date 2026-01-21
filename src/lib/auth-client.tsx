@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback, createContext, useContext, type ReactNode } from "react";
-import type { User } from "./auth";
-import { signInFn, signOutFn, getSessionFn } from "../server/auth";
+import type { SafeUser } from "./auth";
+import { signInFn, signOutFn, getSessionFn, changePasswordFn } from "../server/auth";
+
+// Re-export SafeUser as User for backwards compatibility
+export type User = SafeUser;
 
 /**
  * Client-side authentication hooks and utilities
@@ -44,11 +47,18 @@ export async function getSession(): Promise<User | null> {
 }
 
 /**
- * Sign in with email
+ * Sign in with email and password
  */
-export async function signIn(email: string): Promise<User> {
-  const result = await signInFn({ data: { email } });
+export async function signIn(email: string, password: string): Promise<User> {
+  const result = await signInFn({ data: { email, password } });
   return result.user;
+}
+
+/**
+ * Change the current user's password
+ */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await changePasswordFn({ data: { currentPassword, newPassword } });
 }
 
 /**

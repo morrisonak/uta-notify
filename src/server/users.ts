@@ -5,9 +5,13 @@ import {
   requirePermission,
   requireAuth,
   getCurrentUser,
-  type User,
+  type SafeUser,
 } from "../lib/auth";
 import { hasPermission, getAssignableRoles } from "../lib/permissions";
+import { hashPassword, validatePasswordStrength } from "../lib/password";
+
+// Type alias for backwards compatibility
+type User = SafeUser;
 
 /**
  * User management server functions
@@ -33,6 +37,7 @@ const CreateUserInput = z.object({
   email: z.string().email(),
   name: z.string().min(1).max(100),
   role: z.enum(["admin", "editor", "operator", "viewer"]),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 const UpdateUserInput = z.object({
@@ -151,7 +156,7 @@ export const getUser = createServerFn({ method: "GET" })
   });
 
 /**
- * Create a new user
+ * Create a new user with password
  */
 export const createUser = createServerFn({ method: "POST" })
   .inputValidator(CreateUserInput)
@@ -165,6 +170,12 @@ export const createUser = createServerFn({ method: "POST" })
       throw new Error(`Forbidden: Cannot assign role '${data.role}'`);
     }
 
+    // Validate password strength
+    const passwordError = validatePasswordStrength(data.password);
+    if (passwordError) {
+      throw new Error(passwordError);
+    }
+
     // Check if email already exists
     const existing = await db
       .prepare("SELECT id FROM users WHERE email = ?")
@@ -176,13 +187,14 @@ export const createUser = createServerFn({ method: "POST" })
     }
 
     const id = generateId("usr");
+    const passwordHash = await hashPassword(data.password);
 
     const result = await db
       .prepare(
-        `INSERT INTO users (id, email, name, role, created_at, updated_at)
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`
+        `INSERT INTO users (id, email, name, role, password_hash, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
       )
-      .bind(id, data.email, data.name, data.role)
+      .bind(id, data.email, data.name, data.role, passwordHash)
       .run();
 
     if (!result.success) {

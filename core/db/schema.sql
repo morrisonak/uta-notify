@@ -7,11 +7,12 @@
 
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  external_id TEXT UNIQUE, -- SSO provider ID (null for mock auth)
+  external_id TEXT UNIQUE, -- SSO provider ID (null for local auth)
   email TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('admin', 'editor', 'operator', 'viewer')),
   permissions TEXT, -- JSON: fine-grained permission overrides
+  password_hash TEXT, -- PBKDF2 hash in format "salt:hash"
   avatar_url TEXT,
   last_login_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
