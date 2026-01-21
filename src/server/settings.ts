@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
 import { requirePermission } from "../lib/auth";
+import { logAudit } from "./audit";
 
 /**
  * Settings server functions
@@ -124,6 +125,12 @@ export const updateSetting = createServerFn({ method: "POST" })
     const db = getDB();
     const userId = auth.user.id;
 
+    // Get original value for change tracking
+    const original = await db
+      .prepare("SELECT value FROM settings WHERE key = ?")
+      .bind(data.key)
+      .first<{ value: string }>();
+
     const valueStr =
       typeof data.value === "string"
         ? data.value
@@ -146,6 +153,20 @@ export const updateSetting = createServerFn({ method: "POST" })
     if (!result.success) {
       throw new Error("Failed to update setting");
     }
+
+    // Log setting update
+    await logAudit({
+      action: "update",
+      resourceType: "settings",
+      resourceId: data.key,
+      resourceName: data.key,
+      changes: {
+        value: {
+          old: original?.value || null,
+          new: valueStr,
+        },
+      },
+    });
 
     return { success: true };
   });
@@ -183,6 +204,16 @@ export const updateSettings = createServerFn({ method: "POST" })
       throw new Error("Failed to update some settings");
     }
 
+    // Log batch settings update
+    await logAudit({
+      action: "update",
+      resourceType: "settings",
+      details: {
+        keys: data.settings.map((s) => s.key),
+        count: data.settings.length,
+      },
+    });
+
     return { success: true };
   });
 
@@ -195,6 +226,12 @@ export const deleteSetting = createServerFn({ method: "POST" })
     await requirePermission("settings.edit");
     const db = getDB();
 
+    // Get setting value before deletion
+    const original = await db
+      .prepare("SELECT value FROM settings WHERE key = ?")
+      .bind(data.key)
+      .first<{ value: string }>();
+
     const result = await db
       .prepare("DELETE FROM settings WHERE key = ?")
       .bind(data.key)
@@ -203,6 +240,17 @@ export const deleteSetting = createServerFn({ method: "POST" })
     if (!result.success) {
       throw new Error("Failed to delete setting");
     }
+
+    // Log setting deletion
+    await logAudit({
+      action: "delete",
+      resourceType: "settings",
+      resourceId: data.key,
+      resourceName: data.key,
+      details: {
+        previousValue: original?.value,
+      },
+    });
 
     return { success: true };
   });
@@ -337,6 +385,17 @@ export const updateNotificationSettings = createServerFn({ method: "POST" })
     if (!allSuccessful) {
       throw new Error("Failed to update notification settings");
     }
+
+    // Log notification settings update
+    await logAudit({
+      action: "update",
+      resourceType: "settings",
+      resourceName: "Notification Settings",
+      details: {
+        keys: settingsToUpdate.map((s) => s.key),
+        changes: data,
+      },
+    });
 
     return { success: true };
   });

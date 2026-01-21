@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
 import { requirePermission } from "../lib/auth";
+import { logAudit } from "./audit";
 
 /**
  * Subscriber server functions
@@ -212,6 +213,20 @@ export const createSubscriber = createServerFn({ method: "POST" })
       throw new Error("Failed to create subscriber");
     }
 
+    // Log subscriber creation (mask PII)
+    await logAudit({
+      action: "create",
+      resourceType: "subscriber",
+      resourceId: id,
+      details: {
+        hasEmail: !!data.email,
+        hasPhone: !!data.phone,
+        hasPush: !!data.pushToken,
+        language: data.language || "en",
+        consentMethod: data.consentMethod,
+      },
+    });
+
     return { success: true, id };
   });
 
@@ -223,6 +238,16 @@ export const updateSubscriber = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requirePermission("subscribers.edit");
     const db = getDB();
+
+    // Get original subscriber for change tracking
+    const original = await db
+      .prepare("SELECT * FROM subscribers WHERE id = ?")
+      .bind(data.id)
+      .first<Subscriber>();
+
+    if (!original) {
+      throw new Error("Subscriber not found");
+    }
 
     const updates: string[] = [];
     const params: (string | null)[] = [];
@@ -266,6 +291,34 @@ export const updateSubscriber = createServerFn({ method: "POST" })
       throw new Error("Failed to update subscriber");
     }
 
+    // Build changes object for audit log (mask PII)
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
+    if (data.email !== undefined && data.email !== original.email) {
+      changes.email = { old: "***", new: "***" }; // Mask PII
+    }
+    if (data.phone !== undefined && data.phone !== original.phone) {
+      changes.phone = { old: "***", new: "***" }; // Mask PII
+    }
+    if (data.status !== undefined && data.status !== original.status) {
+      changes.status = { old: original.status, new: data.status };
+    }
+    if (data.language !== undefined && data.language !== original.language) {
+      changes.language = { old: original.language, new: data.language };
+    }
+    if (data.preferences !== undefined) {
+      changes.preferences = { old: "...", new: "..." };
+    }
+
+    // Log subscriber update if there were changes
+    if (Object.keys(changes).length > 0) {
+      await logAudit({
+        action: "update",
+        resourceType: "subscriber",
+        resourceId: data.id,
+        changes,
+      });
+    }
+
     return { success: true };
   });
 
@@ -278,6 +331,12 @@ export const deleteSubscriber = createServerFn({ method: "POST" })
     await requirePermission("subscribers.delete");
     const db = getDB();
 
+    // Get subscriber info before deletion (mask PII in audit)
+    const subscriber = await db
+      .prepare("SELECT id, status, language FROM subscribers WHERE id = ?")
+      .bind(data.id)
+      .first<{ id: string; status: string; language: string }>();
+
     const result = await db
       .prepare("DELETE FROM subscribers WHERE id = ?")
       .bind(data.id)
@@ -286,6 +345,17 @@ export const deleteSubscriber = createServerFn({ method: "POST" })
     if (!result.success) {
       throw new Error("Failed to delete subscriber");
     }
+
+    // Log subscriber deletion
+    await logAudit({
+      action: "delete",
+      resourceType: "subscriber",
+      resourceId: data.id,
+      details: {
+        status: subscriber?.status,
+        language: subscriber?.language,
+      },
+    });
 
     return { success: true };
   });
@@ -331,6 +401,22 @@ export const unsubscribe = createServerFn({ method: "POST" })
       throw new Error("Email or phone is required");
     }
 
+    // Get subscriber ID before unsubscribe
+    let subscriberId: string | null = null;
+    if (data.email) {
+      const sub = await db
+        .prepare("SELECT id FROM subscribers WHERE email = ?")
+        .bind(data.email)
+        .first<{ id: string }>();
+      subscriberId = sub?.id || null;
+    } else if (data.phone) {
+      const sub = await db
+        .prepare("SELECT id FROM subscribers WHERE phone = ?")
+        .bind(data.phone)
+        .first<{ id: string }>();
+      subscriberId = sub?.id || null;
+    }
+
     let query = `UPDATE subscribers SET status = 'unsubscribed', unsubscribed_at = datetime('now'), updated_at = datetime('now') WHERE `;
 
     if (data.email) {
@@ -339,6 +425,23 @@ export const unsubscribe = createServerFn({ method: "POST" })
     } else if (data.phone) {
       query += `phone = ?`;
       await db.prepare(query).bind(data.phone).run();
+    }
+
+    // Log self-service unsubscribe
+    if (subscriberId) {
+      await logAudit({
+        action: "update",
+        resourceType: "subscriber",
+        resourceId: subscriberId,
+        actorType: "system",
+        details: {
+          action: "self-service-unsubscribe",
+          method: data.email ? "email" : "phone",
+        },
+        changes: {
+          status: { old: "active", new: "unsubscribed" },
+        },
+      });
     }
 
     return { success: true };

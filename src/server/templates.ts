@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
 import { requirePermission } from "../lib/auth";
+import { logAudit } from "./audit";
 
 /**
  * Template server functions
@@ -194,6 +195,20 @@ export const createTemplate = createServerFn({ method: "POST" })
       throw new Error("Failed to create template");
     }
 
+    // Log template creation
+    await logAudit({
+      action: "create",
+      resourceType: "template",
+      resourceId: id,
+      resourceName: data.name,
+      details: {
+        incidentType: data.incidentType,
+        channelType: data.channelType,
+        language: data.language,
+        isDefault: data.isDefault,
+      },
+    });
+
     return { success: true, id };
   });
 
@@ -205,6 +220,16 @@ export const updateTemplate = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requirePermission("templates.edit");
     const db = getDB();
+
+    // Get original template for change tracking
+    const original = await db
+      .prepare("SELECT * FROM templates WHERE id = ?")
+      .bind(data.id)
+      .first<Template>();
+
+    if (!original) {
+      throw new Error("Template not found");
+    }
 
     const updates: string[] = ["updated_at = datetime('now')"];
     const params: (string | number | null)[] = [];
@@ -277,6 +302,35 @@ export const updateTemplate = createServerFn({ method: "POST" })
       throw new Error("Failed to update template");
     }
 
+    // Build changes object for audit log
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
+    if (data.name !== undefined && data.name !== original.name) {
+      changes.name = { old: original.name, new: data.name };
+    }
+    if (data.content !== undefined && data.content !== original.content) {
+      changes.content = { old: "...", new: "..." }; // Don't log full content
+    }
+    if (data.incidentType !== undefined && data.incidentType !== original.incident_type) {
+      changes.incidentType = { old: original.incident_type, new: data.incidentType };
+    }
+    if (data.channelType !== undefined && data.channelType !== original.channel_type) {
+      changes.channelType = { old: original.channel_type, new: data.channelType };
+    }
+    if (data.isDefault !== undefined && (data.isDefault ? 1 : 0) !== original.is_default) {
+      changes.isDefault = { old: !!original.is_default, new: data.isDefault };
+    }
+
+    // Log template update if there were changes
+    if (Object.keys(changes).length > 0) {
+      await logAudit({
+        action: "update",
+        resourceType: "template",
+        resourceId: data.id,
+        resourceName: data.name || original.name,
+        changes,
+      });
+    }
+
     return { success: true };
   });
 
@@ -289,6 +343,12 @@ export const deleteTemplate = createServerFn({ method: "POST" })
     await requirePermission("templates.delete");
     const db = getDB();
 
+    // Get template before deletion for audit log
+    const template = await db
+      .prepare("SELECT id, name, incident_type, channel_type FROM templates WHERE id = ?")
+      .bind(data.id)
+      .first<{ id: string; name: string; incident_type: string | null; channel_type: string | null }>();
+
     const result = await db
       .prepare("DELETE FROM templates WHERE id = ?")
       .bind(data.id)
@@ -297,6 +357,18 @@ export const deleteTemplate = createServerFn({ method: "POST" })
     if (!result.success) {
       throw new Error("Failed to delete template");
     }
+
+    // Log template deletion
+    await logAudit({
+      action: "delete",
+      resourceType: "template",
+      resourceId: data.id,
+      resourceName: template?.name || data.id,
+      details: {
+        incidentType: template?.incident_type,
+        channelType: template?.channel_type,
+      },
+    });
 
     return { success: true };
   });
@@ -347,6 +419,18 @@ export const duplicateTemplate = createServerFn({ method: "POST" })
     if (!result.success) {
       throw new Error("Failed to duplicate template");
     }
+
+    // Log template duplication
+    await logAudit({
+      action: "create",
+      resourceType: "template",
+      resourceId: newId,
+      resourceName: `${existing.name} (Copy)`,
+      details: {
+        duplicatedFrom: data.id,
+        originalName: existing.name,
+      },
+    });
 
     return { success: true, id: newId };
   });

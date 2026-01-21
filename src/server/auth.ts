@@ -10,6 +10,8 @@ import {
   requireAuth,
 } from "../lib/auth";
 import { hasPermission, type Permission } from "../lib/permissions";
+import { logAudit } from "./audit";
+import { getDB } from "../utils/cloudflare";
 
 /**
  * Auth server functions
@@ -72,6 +74,18 @@ export const signInFn = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data }) => {
     const result = await signIn(data.email, data.password);
+
+    // Log successful login
+    await logAudit({
+      action: "login",
+      resourceType: "user",
+      resourceId: result.user.id,
+      resourceName: result.user.name,
+      actorId: result.user.id,
+      actorName: result.user.name,
+      details: { email: data.email },
+    });
+
     return { user: result.user };
   });
 
@@ -79,7 +93,23 @@ export const signInFn = createServerFn({ method: "POST" })
  * Sign out
  */
 export const signOutFn = createServerFn({ method: "POST" }).handler(async () => {
+  // Get user before sign out to log their identity
+  const user = await getCurrentUser();
+
   await signOut();
+
+  // Log logout
+  if (user) {
+    await logAudit({
+      action: "logout",
+      resourceType: "user",
+      resourceId: user.id,
+      resourceName: user.name,
+      actorId: user.id,
+      actorName: user.name,
+    });
+  }
+
   return { success: true };
 });
 
@@ -94,6 +124,16 @@ export const changePasswordFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const auth = await requireAuth();
     await changePassword(auth.user.id, data.currentPassword, data.newPassword);
+
+    // Log password change
+    await logAudit({
+      action: "update",
+      resourceType: "user",
+      resourceId: auth.user.id,
+      resourceName: auth.user.name,
+      details: { field: "password", changedBy: "self" },
+    });
+
     return { success: true };
   });
 
@@ -114,5 +154,26 @@ export const setUserPasswordFn = createServerFn({ method: "POST" })
       throw new Error("Forbidden: Missing permission to edit users");
     }
     await setUserPassword(data.userId, data.newPassword);
+
+    // Get target user info for audit log
+    const db = getDB();
+    const targetUser = await db
+      .prepare("SELECT id, name, email FROM users WHERE id = ?")
+      .bind(data.userId)
+      .first<{ id: string; name: string; email: string }>();
+
+    // Log admin password reset
+    await logAudit({
+      action: "update",
+      resourceType: "user",
+      resourceId: data.userId,
+      resourceName: targetUser?.name || data.userId,
+      details: {
+        field: "password",
+        changedBy: "admin",
+        targetEmail: targetUser?.email,
+      },
+    });
+
     return { success: true };
   });

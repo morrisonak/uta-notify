@@ -9,6 +9,7 @@ import {
 } from "../lib/auth";
 import { hasPermission, getAssignableRoles } from "../lib/permissions";
 import { hashPassword, validatePasswordStrength } from "../lib/password";
+import { logAudit } from "./audit";
 
 // Type alias for backwards compatibility
 type User = SafeUser;
@@ -201,6 +202,18 @@ export const createUser = createServerFn({ method: "POST" })
       throw new Error("Failed to create user");
     }
 
+    // Log user creation
+    await logAudit({
+      action: "create",
+      resourceType: "user",
+      resourceId: id,
+      resourceName: data.name,
+      details: {
+        email: data.email,
+        role: data.role,
+      },
+    });
+
     return { success: true, id };
   });
 
@@ -279,6 +292,32 @@ export const updateUser = createServerFn({ method: "POST" })
       throw new Error("Failed to update user");
     }
 
+    // Build changes object for audit log
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
+    if (data.name !== undefined && data.name !== targetUser.name) {
+      changes.name = { old: targetUser.name, new: data.name };
+    }
+    if (data.role !== undefined && data.role !== targetUser.role) {
+      changes.role = { old: targetUser.role, new: data.role };
+    }
+    if (data.permissions !== undefined) {
+      changes.permissions = {
+        old: targetUser.permissions,
+        new: data.permissions,
+      };
+    }
+
+    // Log user update if there were changes
+    if (Object.keys(changes).length > 0) {
+      await logAudit({
+        action: "update",
+        resourceType: "user",
+        resourceId: data.id,
+        resourceName: data.name || targetUser.name,
+        changes,
+      });
+    }
+
     return { success: true };
   });
 
@@ -317,6 +356,12 @@ export const deleteUser = createServerFn({ method: "POST" })
       }
     }
 
+    // Get full user info before deletion for audit log
+    const userToDelete = await db
+      .prepare("SELECT id, name, email, role FROM users WHERE id = ?")
+      .bind(data.id)
+      .first<{ id: string; name: string; email: string; role: string }>();
+
     const result = await db
       .prepare("DELETE FROM users WHERE id = ?")
       .bind(data.id)
@@ -325,6 +370,18 @@ export const deleteUser = createServerFn({ method: "POST" })
     if (!result.success) {
       throw new Error("Failed to delete user");
     }
+
+    // Log user deletion
+    await logAudit({
+      action: "delete",
+      resourceType: "user",
+      resourceId: data.id,
+      resourceName: userToDelete?.name || data.id,
+      details: {
+        email: userToDelete?.email,
+        role: userToDelete?.role,
+      },
+    });
 
     return { success: true };
   });

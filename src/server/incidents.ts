@@ -156,8 +156,12 @@ export const createIncident = createServerFn({ method: "POST" })
     const userId = auth.user.id;
 
     const id = generateId("inc");
+    const auditId = `aud_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 9)}`;
+    const requestId = `req_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 6)}`;
+    const createdAt = new Date().toISOString();
 
-    const result = await db
+    // Use batch to make both operations atomic
+    const incidentStmt = db
       .prepare(
         `INSERT INTO incidents (
           id, incident_type, severity, status, title,
@@ -178,26 +182,43 @@ export const createIncident = createServerFn({ method: "POST" })
         data.startTime || null,
         data.estimatedResolution || null,
         userId
-      )
-      .run();
+      );
 
-    if (!result.success) {
+    const auditStmt = db
+      .prepare(
+        `INSERT INTO audit_log (
+          id, actor_id, actor_type, actor_name, action, resource_type,
+          resource_id, resource_name, details, changes, ip_address,
+          user_agent, request_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      )
+      .bind(
+        auditId,
+        auth.user.id,
+        "user",
+        auth.user.name,
+        "create",
+        "incident",
+        id,
+        data.title,
+        JSON.stringify({
+          incidentType: data.incidentType,
+          severity: data.severity,
+          affectedModes: data.affectedModes,
+          affectedRoutes: data.affectedRoutes,
+        }),
+        null,
+        null,
+        null,
+        requestId,
+        createdAt
+      );
+
+    const results = await db.batch([incidentStmt, auditStmt]);
+
+    if (!results[0].success) {
       throw new Error("Failed to create incident");
     }
-
-    // Log the creation
-    await logAudit({
-      action: "create",
-      resourceType: "incident",
-      resourceId: id,
-      resourceName: data.title,
-      details: {
-        incidentType: data.incidentType,
-        severity: data.severity,
-        affectedModes: data.affectedModes,
-        affectedRoutes: data.affectedRoutes,
-      },
-    });
 
     return { success: true, id };
   });
@@ -336,6 +357,8 @@ export const updateIncident = createServerFn({ method: "POST" })
       resourceType: "incident",
       resourceId: data.id,
       resourceName: original.title,
+      actorId: auth.user.id,
+      actorName: auth.user.name,
       changes: Object.keys(changes).length > 0 ? changes : undefined,
     });
 
@@ -348,7 +371,7 @@ export const updateIncident = createServerFn({ method: "POST" })
 export const deleteIncident = createServerFn({ method: "POST" })
   .inputValidator(DeleteIncidentInput)
   .handler(async ({ data }) => {
-    await requirePermission("incidents.delete");
+    const auth = await requirePermission("incidents.delete");
     const db = getDB();
 
     // Fetch incident for audit trail before deletion
@@ -371,6 +394,8 @@ export const deleteIncident = createServerFn({ method: "POST" })
       resourceType: "incident",
       resourceId: data.id,
       resourceName: incident?.title || "Unknown",
+      actorId: auth.user.id,
+      actorName: auth.user.name,
       details: incident ? {
         severity: incident.severity,
         status: incident.status,

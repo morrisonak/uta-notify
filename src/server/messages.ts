@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getDB } from "../utils/cloudflare";
 import { requirePermission } from "../lib/auth";
+import { logAudit } from "./audit";
 
 /**
  * Message server functions
@@ -173,6 +174,17 @@ export const createMessage = createServerFn({ method: "POST" })
       throw new Error("Failed to create message");
     }
 
+    // Log message creation
+    await logAudit({
+      action: "create",
+      resourceType: "message",
+      resourceId: id,
+      details: {
+        incidentId: data.incidentId,
+        contentPreview: data.content.substring(0, 100),
+      },
+    });
+
     return { success: true, id };
   });
 
@@ -184,6 +196,16 @@ export const updateMessage = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     await requirePermission("messages.edit");
     const db = getDB();
+
+    // Get original message for change tracking
+    const original = await db
+      .prepare("SELECT * FROM messages WHERE id = ?")
+      .bind(data.id)
+      .first<Message>();
+
+    if (!original) {
+      throw new Error("Message not found");
+    }
 
     const updates: string[] = [];
     const params: (string | null)[] = [];
@@ -210,6 +232,31 @@ export const updateMessage = createServerFn({ method: "POST" })
       throw new Error("Failed to update message");
     }
 
+    // Build changes object for audit log
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
+    if (data.content !== undefined && data.content !== original.content) {
+      changes.content = {
+        old: original.content.substring(0, 100),
+        new: data.content.substring(0, 100),
+      };
+    }
+    if (data.channelOverrides !== undefined) {
+      changes.channelOverrides = {
+        old: original.channel_overrides,
+        new: data.channelOverrides,
+      };
+    }
+
+    // Log message update
+    if (Object.keys(changes).length > 0) {
+      await logAudit({
+        action: "update",
+        resourceType: "message",
+        resourceId: data.id,
+        changes,
+      });
+    }
+
     return { success: true };
   });
 
@@ -222,6 +269,12 @@ export const deleteMessage = createServerFn({ method: "POST" })
     await requirePermission("messages.delete");
     const db = getDB();
 
+    // Get message before deletion for audit log
+    const message = await db
+      .prepare("SELECT id, incident_id, content FROM messages WHERE id = ?")
+      .bind(data.id)
+      .first<{ id: string; incident_id: string; content: string }>();
+
     const result = await db
       .prepare("DELETE FROM messages WHERE id = ?")
       .bind(data.id)
@@ -230,6 +283,17 @@ export const deleteMessage = createServerFn({ method: "POST" })
     if (!result.success) {
       throw new Error("Failed to delete message");
     }
+
+    // Log message deletion
+    await logAudit({
+      action: "delete",
+      resourceType: "message",
+      resourceId: data.id,
+      details: {
+        incidentId: message?.incident_id,
+        contentPreview: message?.content?.substring(0, 100),
+      },
+    });
 
     return { success: true };
   });

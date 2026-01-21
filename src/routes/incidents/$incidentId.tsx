@@ -16,8 +16,8 @@ import {
   getIncident,
   updateIncident,
   deleteIncident,
-  publishIncidentWithNotifications,
-} from "../../lib/server-functions";
+} from "../../server/incidents";
+import { publishIncidentWithNotifications } from "../../lib/server-functions";
 import { formatRelativeTime } from "../../lib/utils";
 import { UTA_ROUTES, TRANSIT_MODES } from "../../data/uta-routes";
 

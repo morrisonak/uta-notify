@@ -8,7 +8,7 @@ import {
   ChevronRight,
   ArrowLeft,
 } from "lucide-react";
-import { getIncidents } from "../lib/server-functions";
+import { getIncidents } from "../server/incidents";
 import { formatRelativeTime } from "../lib/utils";
 import { requireAuthFn } from "../server/auth";
 import { useSession } from "../lib/auth-client";

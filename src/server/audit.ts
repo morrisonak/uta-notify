@@ -115,13 +115,16 @@ export async function logAudit(params: LogAuditParams): Promise<void> {
     const ipAddress: string | null = null;
     const userAgent: string | null = null;
 
+    // Use ISO 8601 format for proper JavaScript Date parsing
+    const createdAt = new Date().toISOString();
+
     await db
       .prepare(
         `INSERT INTO audit_log (
           id, actor_id, actor_type, actor_name, action, resource_type,
           resource_id, resource_name, details, changes, ip_address,
           user_agent, request_id, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .bind(
         id,
@@ -136,12 +139,14 @@ export async function logAudit(params: LogAuditParams): Promise<void> {
         params.changes ? JSON.stringify(params.changes) : null,
         ipAddress,
         userAgent,
-        requestId
+        requestId,
+        createdAt
       )
       .run();
   } catch (error) {
     // Don't throw on audit failures - log and continue
     console.error("Audit logging failed:", error);
+    console.error("Audit params:", JSON.stringify(params, null, 2));
   }
 }
 

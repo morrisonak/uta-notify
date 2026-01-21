@@ -10,7 +10,8 @@ import {
   TrendingUp,
   Users,
 } from "lucide-react";
-import { getDashboardStats, getIncidents, getRecentActivity } from "../lib/server-functions";
+import { getDashboardStats, getRecentActivity } from "../lib/server-functions";
+import { getIncidents } from "../server/incidents";
 import { formatRelativeTime } from "../lib/utils";
 import { requireAuthFn } from "../server/auth";
 

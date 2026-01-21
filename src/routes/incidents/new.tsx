@@ -1,7 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Loader2, Search, X, FileText } from "lucide-react";
-import { createIncident } from "../../lib/server-functions";
+import { createIncident } from "../../server/incidents";
 import { getTemplatesForIncident } from "../../server/templates";
 import { requirePermissionFn } from "../../server/auth";
 import { UTA_ROUTES, TRANSIT_MODES } from "../../data/uta-routes";
