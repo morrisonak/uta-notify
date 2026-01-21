@@ -1,15 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { env } from "cloudflare:workers";
 import { z } from "zod";
-
-// Helper to get D1 database from Cloudflare env
-function getDB(): D1Database {
-  const typedEnv = env as Env;
-  if (!typedEnv.DB) {
-    throw new Error("Database binding not found");
-  }
-  return typedEnv.DB;
-}
+import { getDB } from "../utils/cloudflare";
 
 // ============================================
 // INCIDENT SERVER FUNCTIONS
