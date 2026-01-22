@@ -88,7 +88,7 @@ function DashboardPage() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden p-6">
+    <div className="h-full overflow-y-auto p-6">
       <PageHeader
         title="Dashboard"
         description="Overview of active incidents and communication status"
@@ -96,7 +96,7 @@ function DashboardPage() {
       />
 
       {/* Stats Grid */}
-      <div className="flex-none mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Active Incidents"
           value={stats.activeIncidents.toString()}
@@ -132,10 +132,10 @@ function DashboardPage() {
       </div>
 
       {/* Main Content - Incidents & Activity */}
-      <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-2">
+      <div className="mb-6 grid gap-4 lg:grid-cols-2">
         {/* Active Incidents */}
-        <Card className="flex flex-col min-h-0">
-          <div className="flex-none flex items-center justify-between border-b p-4">
+        <Card className="flex flex-col min-h-[300px]">
+          <div className="flex items-center justify-between border-b p-4">
             <h2 className="font-semibold">Active Incidents</h2>
             <Link
               to="/incidents"
@@ -145,7 +145,7 @@ function DashboardPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <CardContent className="flex-1 min-h-0 overflow-y-auto p-4">
+          <CardContent className="flex-1 overflow-y-auto p-4">
             {incidents.length > 0 ? (
               <div className="space-y-3">
                 {incidents.map((incident) => (
@@ -172,8 +172,8 @@ function DashboardPage() {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="flex flex-col min-h-0">
-          <div className="flex-none flex items-center justify-between border-b p-4">
+        <Card className="flex flex-col min-h-[300px]">
+          <div className="flex items-center justify-between border-b p-4">
             <h2 className="font-semibold">Recent Activity</h2>
             <Link
               to="/reports"
@@ -183,7 +183,7 @@ function DashboardPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto divide-y">
+          <div className="flex-1 overflow-y-auto divide-y">
             {activities.length > 0 ? (
               activities.map((activity) => (
                 <ActivityItem
@@ -207,7 +207,7 @@ function DashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="flex-none mt-6">
+      <div>
         <h2 className="mb-3 font-semibold text-sm">Quick Actions</h2>
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <QuickActionCard
