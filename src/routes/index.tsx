@@ -264,7 +264,8 @@ function IncidentCard({ incident }: IncidentCardProps) {
 
   return (
     <Link
-      to="/incidents"
+      to="/incidents/$incidentId"
+      params={{ incidentId: incident.id }}
       className="block rounded-lg border p-2.5 transition-colors hover:bg-accent"
     >
       <div className="flex items-start justify-between gap-2">
