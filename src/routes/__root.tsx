@@ -16,8 +16,24 @@ import {
   Users,
   BarChart3,
   Shield,
+  Menu,
 } from "lucide-react";
 import { useSession, signOut, SessionProvider } from "../lib/auth-client";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarSeparator,
+  SidebarTrigger,
+  useSidebar,
+} from "../components/ui/sidebar";
 
 import appCss from "../styles.css?url";
 
@@ -53,6 +69,20 @@ export const Route = createRootRoute({
   shellComponent: RootDocument,
 });
 
+const mainNavItems = [
+  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/incidents", icon: AlertTriangle, label: "Incidents" },
+  { to: "/messages", icon: MessageSquare, label: "Messages" },
+  { to: "/templates", icon: FileText, label: "Templates" },
+  { to: "/subscribers", icon: Users, label: "Subscribers" },
+  { to: "/reports", icon: BarChart3, label: "Reports" },
+];
+
+const secondaryNavItems = [
+  { to: "/audit", icon: Shield, label: "Audit Log" },
+  { to: "/settings", icon: Settings, label: "Settings" },
+];
+
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="h-full">
@@ -61,47 +91,19 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="h-full">
         <SessionProvider>
-          <div className="flex h-full">
-            {/* Sidebar */}
-            <aside className="hidden w-64 flex-col border-r bg-card lg:flex">
-              <div className="flex h-16 items-center gap-2 border-b px-6">
-                <Bell className="h-6 w-6 text-primary" />
-                <span className="text-lg font-bold">UTA Notify</span>
-              </div>
-              <nav className="flex-1 space-y-1 p-4">
-                <NavLink to="/" icon={<LayoutDashboard className="h-4 w-4" />}>
-                  Dashboard
-                </NavLink>
-                <NavLink to="/incidents" icon={<AlertTriangle className="h-4 w-4" />}>
-                  Incidents
-                </NavLink>
-                <NavLink to="/messages" icon={<MessageSquare className="h-4 w-4" />}>
-                  Messages
-                </NavLink>
-                <NavLink to="/templates" icon={<FileText className="h-4 w-4" />}>
-                  Templates
-                </NavLink>
-                <NavLink to="/subscribers" icon={<Users className="h-4 w-4" />}>
-                  Subscribers
-                </NavLink>
-                <NavLink to="/reports" icon={<BarChart3 className="h-4 w-4" />}>
-                  Reports
-                </NavLink>
-                <div className="pt-4">
-                  <NavLink to="/audit" icon={<Shield className="h-4 w-4" />}>
-                    Audit Log
-                  </NavLink>
-                  <NavLink to="/settings" icon={<Settings className="h-4 w-4" />}>
-                    Settings
-                  </NavLink>
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset>
+              <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4 md:hidden">
+                <MobileMenuButton />
+                <div className="flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" />
+                  <span className="font-semibold">UTA Notify</span>
                 </div>
-              </nav>
-              <UserCard />
-            </aside>
-
-            {/* Main content */}
-            <main className="flex-1 overflow-hidden">{children}</main>
-          </div>
+              </header>
+              <main className="flex-1 overflow-hidden">{children}</main>
+            </SidebarInset>
+          </SidebarProvider>
         </SessionProvider>
         <Scripts />
       </body>
@@ -109,29 +111,90 @@ function RootDocument({ children }: { children: React.ReactNode }) {
   );
 }
 
-function NavLink({
-  to,
-  icon,
-  children,
-}: {
-  to: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
+function MobileMenuButton() {
+  const { setOpenMobile } = useSidebar();
   return (
-    <Link
-      to={to}
-      className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground [&.active]:bg-accent [&.active]:text-accent-foreground"
-      activeProps={{ className: "active" }}
+    <button
+      onClick={() => setOpenMobile(true)}
+      className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-accent"
     >
-      {icon}
-      {children}
-    </Link>
+      <Menu className="h-5 w-5" />
+      <span className="sr-only">Open menu</span>
+    </button>
+  );
+}
+
+function AppSidebar() {
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
+
+  return (
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="h-16 flex-row items-center justify-center border-b px-4">
+        <Link to="/" className="flex items-center gap-2 overflow-hidden">
+          <Bell className="h-6 w-6 text-primary flex-shrink-0" />
+          {!isCollapsed && (
+            <span className="text-lg font-bold whitespace-nowrap">UTA Notify</span>
+          )}
+        </Link>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            {mainNavItems.map((item) => (
+              <SidebarMenuItem key={item.to}>
+                <SidebarMenuButton asChild tooltip={item.label}>
+                  <Link
+                    to={item.to}
+                    className="[&.active]:bg-accent [&.active]:text-accent-foreground"
+                    activeProps={{ className: "active" }}
+                  >
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span>{item.label}</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        <SidebarGroup>
+          <SidebarMenu>
+            {secondaryNavItems.map((item) => (
+              <SidebarMenuItem key={item.to}>
+                <SidebarMenuButton asChild tooltip={item.label}>
+                  <Link
+                    to={item.to}
+                    className="[&.active]:bg-accent [&.active]:text-accent-foreground"
+                    activeProps={{ className: "active" }}
+                  >
+                    <item.icon className="h-4 w-4 flex-shrink-0" />
+                    {!isCollapsed && <span>{item.label}</span>}
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t p-2">
+        <div className="flex items-center justify-center">
+          <SidebarTrigger />
+        </div>
+        <UserCard />
+      </SidebarFooter>
+    </Sidebar>
   );
 }
 
 function UserCard() {
   const { user, isLoading } = useSession();
+  const { state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const handleSignOut = async () => {
     await signOut();
@@ -139,13 +202,15 @@ function UserCard() {
 
   if (isLoading) {
     return (
-      <div className="border-t p-4">
+      <div className="p-2">
         <div className="animate-pulse flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-muted" />
-          <div className="flex-1">
-            <div className="h-4 w-24 bg-muted rounded" />
-            <div className="h-3 w-32 bg-muted rounded mt-1" />
-          </div>
+          <div className="h-8 w-8 rounded-full bg-muted flex-shrink-0" />
+          {!isCollapsed && (
+            <div className="flex-1">
+              <div className="h-4 w-24 bg-muted rounded" />
+              <div className="h-3 w-32 bg-muted rounded mt-1" />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -153,12 +218,15 @@ function UserCard() {
 
   if (!user) {
     return (
-      <div className="border-t p-4">
+      <div className="p-2">
         <Link
           to="/login"
-          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          className={`flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 ${
+            isCollapsed ? "p-2" : ""
+          }`}
         >
-          Sign In
+          <LogOut className="h-4 w-4" />
+          {!isCollapsed && <span>Sign In</span>}
         </Link>
       </div>
     );
@@ -172,22 +240,26 @@ function UserCard() {
     .slice(0, 2);
 
   return (
-    <div className="border-t p-4">
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+    <div className="p-2">
+      <div className={`flex items-center gap-3 ${isCollapsed ? "justify-center" : ""}`}>
+        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
           <span className="text-sm font-medium text-primary">{initials}</span>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{user.name}</p>
-          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-        </div>
-        <button
-          onClick={handleSignOut}
-          className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          title="Sign out"
-        >
-          <LogOut className="h-4 w-4" />
-        </button>
+        {!isCollapsed && (
+          <>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{user.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="rounded-lg p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

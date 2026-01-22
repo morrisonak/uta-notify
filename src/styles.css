@@ -42,6 +42,16 @@
   --color-delivery-delivered: #16a34a;
   --color-delivery-failed: #dc2626;
 
+  /* Sidebar colors */
+  --color-sidebar: #ffffff;
+  --color-sidebar-foreground: #1a1a1a;
+  --color-sidebar-primary: #0066cc;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #f3f4f6;
+  --color-sidebar-accent-foreground: #1a1a1a;
+  --color-sidebar-border: #e5e7eb;
+  --color-sidebar-ring: #0066cc;
+
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
     "Oxygen", "Ubuntu", sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", Consolas, monospace;
