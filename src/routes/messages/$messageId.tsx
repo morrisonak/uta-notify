@@ -16,7 +16,7 @@ import { queueMessageDelivery, getEnabledChannels } from "../../server/delivery"
 import { formatRelativeTime } from "../../lib/utils";
 import { useSession } from "../../lib/auth-client";
 import { hasPermission } from "../../lib/permissions";
-import { Button, Badge, Card, StatCard, EmptyState } from "../../components/ui";
+import { Button, Badge, Card, StatCard, EmptyState, Alert } from "../../components/ui";
 
 export const Route = createFileRoute("/messages/$messageId")({
   loader: async ({ params }) => {
@@ -150,9 +150,7 @@ function MessageDetailPage() {
           )}
         </div>
         {sendError && (
-          <div className="mt-3 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
-            {sendError}
-          </div>
+          <Alert variant="destructive" className="mt-3">{sendError}</Alert>
         )}
       </div>
 

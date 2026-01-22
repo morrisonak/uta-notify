@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  Alert,
 } from "../components/ui";
 
 export const Route = createFileRoute("/subscribers")({
@@ -259,9 +260,7 @@ function AddSubscriberModal({ onClose, onSuccess }: AddSubscriberModalProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
-              {error}
-            </div>
+            <Alert variant="destructive">{error}</Alert>
           )}
 
           <div>

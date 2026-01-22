@@ -5,7 +5,7 @@ import { createIncident } from "../../server/incidents";
 import { getTemplatesForIncident } from "../../server/templates";
 import { requirePermissionFn } from "../../server/auth";
 import { UTA_ROUTES, TRANSIT_MODES } from "../../data/uta-routes";
-import { Button, Input, Textarea, Card, Badge, PageHeader } from "../../components/ui";
+import { Button, Input, Textarea, Card, Badge, PageHeader, Select, Alert } from "../../components/ui";
 
 export const Route = createFileRoute("/incidents/new")({
   beforeLoad: async () => {
@@ -161,9 +161,7 @@ function NewIncidentPage() {
         <Card className="p-4">
           <div className="space-y-4">
             {error && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
-                {error}
-              </div>
+              <Alert variant="destructive">{error}</Alert>
             )}
 
             {/* Title */}
@@ -187,32 +185,30 @@ function NewIncidentPage() {
                 <label className="block text-sm font-medium mb-1">
                   Incident Type <span className="text-red-500">*</span>
                 </label>
-                <select
+                <Select
                   required
                   value={formData.incidentType}
                   onChange={(e) => setFormData({ ...formData, incidentType: e.target.value })}
-                  className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   {incidentTypes.map((type) => (
                     <option key={type.value} value={type.value}>{type.label}</option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Severity <span className="text-red-500">*</span>
                 </label>
-                <select
+                <Select
                   required
                   value={formData.severity}
                   onChange={(e) => setFormData({ ...formData, severity: e.target.value as any })}
-                  className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
                   <option value="critical">Critical</option>
-                </select>
+                </Select>
               </div>
             </div>
 

@@ -1,7 +1,11 @@
 export { Button, buttonVariants, type ButtonProps } from "./button";
 export { Input, type InputProps } from "./input";
 export { Textarea, type TextareaProps } from "./textarea";
+export { Select, SelectOption, type SelectProps } from "./select";
 export { Badge, badgeVariants, type BadgeProps } from "./badge";
+export { Alert, AlertTitle, AlertDescription, alertVariants } from "./alert";
+export { Switch } from "./switch";
+export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs";
 export {
   Card,
   CardHeader,

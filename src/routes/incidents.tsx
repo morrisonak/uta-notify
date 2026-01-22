@@ -12,7 +12,7 @@ import { formatRelativeTime } from "../lib/utils";
 import { requireAuthFn } from "../server/auth";
 import { useSession } from "../lib/auth-client";
 import { hasPermission } from "../lib/permissions";
-import { Button, Input, EmptyState } from "../components/ui";
+import { Button, Input, EmptyState, Select } from "../components/ui";
 
 export const Route = createFileRoute("/incidents")({
   beforeLoad: async () => {
@@ -108,10 +108,10 @@ function IncidentsLayout() {
 
           {/* Filters */}
           <div className="flex gap-2">
-            <select
+            <Select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 flex-1"
             >
               <option value="">All Status</option>
               <option value="draft">Draft</option>
@@ -119,18 +119,18 @@ function IncidentsLayout() {
               <option value="updated">Updated</option>
               <option value="resolved">Resolved</option>
               <option value="archived">Archived</option>
-            </select>
-            <select
+            </Select>
+            <Select
               value={severityFilter}
               onChange={(e) => setSeverityFilter(e.target.value)}
-              className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 flex-1"
             >
               <option value="">All Severity</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="critical">Critical</option>
-            </select>
+            </Select>
           </div>
         </div>
 

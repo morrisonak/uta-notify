@@ -46,6 +46,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Alert,
 } from "../../components/ui";
 
 export const Route = createFileRoute("/incidents/$incidentId")({
@@ -390,9 +391,7 @@ function IncidentDetailPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
-          {error}
-        </div>
+        <Alert variant="destructive" className="mb-6">{error}</Alert>
       )}
 
       {/* Status Actions */}

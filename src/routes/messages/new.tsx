@@ -8,7 +8,7 @@ import {
   renderTemplateWithIncident,
 } from "../../server/templates";
 import { requirePermissionFn } from "../../server/auth";
-import { Button, Textarea, Card, PageHeader } from "../../components/ui";
+import { Button, Textarea, Card, PageHeader, Select, Alert } from "../../components/ui";
 
 export const Route = createFileRoute("/messages/new")({
   beforeLoad: async () => {
@@ -145,22 +145,19 @@ function NewMessagePage() {
         <Card className="p-4">
           <div className="space-y-4">
             {error && (
-              <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
-                {error}
-              </div>
+              <Alert variant="destructive">{error}</Alert>
             )}
 
             <div>
               <label className="block text-sm font-medium mb-1">
                 Related Incident <span className="text-red-500">*</span>
               </label>
-              <select
+              <Select
                 value={formData.incidentId}
                 onChange={(e) => {
                   setFormData({ ...formData, incidentId: e.target.value, content: "" });
                   setSelectedTemplateId("");
                 }}
-                className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={isSubmitting}
               >
                 <option value="">Select an incident...</option>
@@ -169,7 +166,7 @@ function NewMessagePage() {
                     {incident.title} ({incident.status})
                   </option>
                 ))}
-              </select>
+              </Select>
               {availableIncidents.length === 0 && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   No active incidents. Create an incident first.

@@ -39,6 +39,8 @@ import {
   DialogHeader,
   DialogTitle,
   toast,
+  Select,
+  Alert,
 } from "../components/ui";
 
 export const Route = createFileRoute("/templates")({
@@ -339,9 +341,7 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
         </DialogHeader>
 
         {error && (
-          <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
-            {error}
-          </div>
+          <Alert variant="destructive">{error}</Alert>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -363,34 +363,32 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
               <label className="block text-sm font-medium mb-1">
                 Incident Type
               </label>
-              <select
+              <Select
                 value={formData.incidentType}
                 onChange={(e) => setFormData({ ...formData, incidentType: e.target.value })}
-                className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={isSubmitting}
               >
                 <option value="">All Types</option>
                 {incidentTypes.map((type) => (
                   <option key={type} value={type}>{type.replace(/_/g, " ")}</option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium mb-1">Channel Type</label>
-              <select
+              <Select
                 value={formData.channelType}
                 onChange={(e) => setFormData({ ...formData, channelType: e.target.value })}
-                className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={isSubmitting}
               >
                 <option value="">All Channels</option>
                 {channelTypes.map((type) => (
                   <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="flex items-center gap-2 pt-6">

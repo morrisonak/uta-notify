@@ -18,7 +18,7 @@ import {
 import { getAuditLogs, getAuditStats, type AuditLogEntry } from "../server/audit";
 import { requirePermissionFn } from "../server/auth";
 import { formatRelativeTime } from "../lib/utils";
-import { Button, Input, Card, EmptyState, StatCard } from "../components/ui";
+import { Button, Input, Card, EmptyState, StatCard, Select } from "../components/ui";
 
 export const Route = createFileRoute("/audit")({
   beforeLoad: async () => {
@@ -175,13 +175,13 @@ function AuditLayout() {
 
           {/* Filters */}
           <div className="flex gap-2">
-            <select
+            <Select
               value={resourceFilter}
               onChange={(e) => {
                 setResourceFilter(e.target.value);
                 setTimeout(handleFilterChange, 0);
               }}
-              className="h-9 flex-1 rounded-lg border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 flex-1"
             >
               <option value="">All Resources</option>
               <option value="incident">Incidents</option>
@@ -189,14 +189,14 @@ function AuditLayout() {
               <option value="template">Templates</option>
               <option value="subscriber">Subscribers</option>
               <option value="user">Users</option>
-            </select>
-            <select
+            </Select>
+            <Select
               value={actionFilter}
               onChange={(e) => {
                 setActionFilter(e.target.value);
                 setTimeout(handleFilterChange, 0);
               }}
-              className="h-9 flex-1 rounded-lg border bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 flex-1"
             >
               <option value="">All Actions</option>
               <option value="create">Create</option>
@@ -205,7 +205,7 @@ function AuditLayout() {
               <option value="publish">Publish</option>
               <option value="resolve">Resolve</option>
               <option value="send">Send</option>
-            </select>
+            </Select>
             <Button
               variant="outline"
               size="icon"
