@@ -4,7 +4,6 @@ import {
   AlertTriangle,
   Plus,
   Search,
-  Filter,
   ChevronRight,
   ArrowLeft,
 } from "lucide-react";
@@ -13,6 +12,7 @@ import { formatRelativeTime } from "../lib/utils";
 import { requireAuthFn } from "../server/auth";
 import { useSession } from "../lib/auth-client";
 import { hasPermission } from "../lib/permissions";
+import { Button, Input, EmptyState } from "../components/ui";
 
 export const Route = createFileRoute("/incidents")({
   beforeLoad: async () => {
@@ -54,7 +54,6 @@ function IncidentsLayout() {
   const [severityFilter, setSeverityFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Check if we're on a child route (detail or new)
   const isChildRoute = matches.some(
     (match) => match.routeId === "/incidents/$incidentId" || match.routeId === "/incidents/new"
   );
@@ -77,8 +76,8 @@ function IncidentsLayout() {
       {/* Left Panel - Incidents List */}
       <div className={`${isChildRoute ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-96 border-r bg-background`}>
         {/* Header */}
-        <div className="flex-none p-4 border-b">
-          <div className="flex items-center justify-between mb-4">
+        <div className="flex-none p-6 border-b">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-xl font-bold">Incidents</h1>
               <p className="text-sm text-muted-foreground">
@@ -86,25 +85,24 @@ function IncidentsLayout() {
               </p>
             </div>
             {canCreate && (
-              <Link
-                to="/incidents/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4" />
-                New
-              </Link>
+              <Button asChild>
+                <Link to="/incidents/new">
+                  <Plus className="h-4 w-4" />
+                  New
+                </Link>
+              </Button>
             )}
           </div>
 
           {/* Search */}
-          <div className="relative mb-3">
+          <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
+            <Input
               type="text"
               placeholder="Search incidents..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 w-full rounded-lg border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="pl-9 h-9"
             />
           </div>
 
@@ -113,7 +111,7 @@ function IncidentsLayout() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-8 flex-1 rounded-lg border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">All Status</option>
               <option value="draft">Draft</option>
@@ -125,7 +123,7 @@ function IncidentsLayout() {
             <select
               value={severityFilter}
               onChange={(e) => setSeverityFilter(e.target.value)}
-              className="h-8 flex-1 rounded-lg border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 flex-1 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">All Severity</option>
               <option value="low">Low</option>
@@ -145,28 +143,28 @@ function IncidentsLayout() {
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-              <div className="mb-3 rounded-full bg-muted p-3">
-                <AlertTriangle className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <p className="mb-1 font-medium">No incidents found</p>
-              <p className="mb-4 text-sm text-muted-foreground">
-                {searchQuery || statusFilter || severityFilter
+            <EmptyState
+              icon={<AlertTriangle className="h-6 w-6 text-muted-foreground" />}
+              title="No incidents found"
+              description={
+                searchQuery || statusFilter || severityFilter
                   ? "Try adjusting your filters"
                   : canCreate
                     ? "Create your first incident"
-                    : "No incidents to display"}
-              </p>
-              {canCreate && (
-                <Link
-                  to="/incidents/new"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create Incident
-                </Link>
-              )}
-            </div>
+                    : "No incidents to display"
+              }
+              action={
+                canCreate ? (
+                  <Button asChild>
+                    <Link to="/incidents/new">
+                      <Plus className="h-4 w-4" />
+                      Create Incident
+                    </Link>
+                  </Button>
+                ) : undefined
+              }
+              className="h-full"
+            />
           )}
         </div>
       </div>
@@ -176,7 +174,7 @@ function IncidentsLayout() {
         {isChildRoute ? (
           <>
             {/* Mobile back button */}
-            <div className="lg:hidden flex-none p-2 border-b bg-background">
+            <div className="lg:hidden flex-none p-3 border-b bg-background">
               <Link
                 to="/incidents"
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
@@ -190,26 +188,26 @@ function IncidentsLayout() {
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <div className="mb-4 rounded-full bg-muted p-4">
-              <AlertTriangle className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h2 className="text-lg font-semibold mb-2">Select an incident</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              {canCreate
+          <EmptyState
+            icon={<AlertTriangle className="h-8 w-8 text-muted-foreground" />}
+            title="Select an incident"
+            description={
+              canCreate
                 ? "Choose an incident from the list to view details, or create a new one."
-                : "Choose an incident from the list to view details."}
-            </p>
-            {canCreate && (
-              <Link
-                to="/incidents/new"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                <Plus className="h-4 w-4" />
-                New Incident
-              </Link>
-            )}
-          </div>
+                : "Choose an incident from the list to view details."
+            }
+            action={
+              canCreate ? (
+                <Button asChild>
+                  <Link to="/incidents/new">
+                    <Plus className="h-4 w-4" />
+                    New Incident
+                  </Link>
+                </Button>
+              ) : undefined
+            }
+            className="h-full"
+          />
         )}
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Bell,
   Mail,
@@ -13,7 +13,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  X,
   Users,
   Eye,
   EyeOff,
@@ -38,6 +37,19 @@ import {
   hasPermission,
 } from "../lib/permissions";
 import type { User } from "../lib/auth";
+import {
+  Button,
+  Input,
+  Card,
+  PageHeader,
+  StatCard,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  toast,
+} from "../components/ui";
 
 export const Route = createFileRoute("/settings")({
   beforeLoad: async () => {
@@ -101,7 +113,7 @@ function SettingsPage() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      alert("Failed to save settings");
+      toast({ title: "Error", description: "Failed to save settings", variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
@@ -193,7 +205,7 @@ function SettingsPage() {
       await deleteUser({ data: { id: userId } });
       await refreshUsers();
     } catch (err: any) {
-      alert(err.message || "Failed to delete user");
+      toast({ title: "Error", description: err.message || "Failed to delete user", variant: "destructive" });
     }
   };
 
@@ -253,14 +265,11 @@ function SettingsPage() {
   ];
 
   return (
-    <div className="h-full overflow-y-auto p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground">
-          Configure channels, integrations, and system preferences
-        </p>
-      </div>
+    <div className="h-full overflow-y-auto p-6">
+      <PageHeader
+        title="Settings"
+        description="Configure channels, integrations, and system preferences"
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Navigation */}
@@ -286,7 +295,7 @@ function SettingsPage() {
         {/* Content */}
         <div className="lg:col-span-2">
           {activeTab === "notifications" && (
-            <div className="rounded-xl border bg-card">
+            <Card>
               <div className="border-b p-4">
                 <h2 className="font-semibold flex items-center gap-2">
                   <Bell className="h-5 w-5" />
@@ -399,11 +408,7 @@ function SettingsPage() {
 
                 {/* Save Button */}
                 <div className="flex justify-end pt-4 border-t">
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                  >
+                  <Button onClick={handleSave} disabled={isSaving}>
                     {isSaving ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -417,49 +422,52 @@ function SettingsPage() {
                     ) : (
                       "Save Changes"
                     )}
-                  </button>
+                  </Button>
                 </div>
               </div>
-            </div>
+            </Card>
           )}
 
           {activeTab === "access" && (
             <div className="space-y-6">
               {/* User Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="rounded-xl border bg-card p-4">
-                  <div className="text-2xl font-bold">{userStats.total}</div>
-                  <div className="text-sm text-muted-foreground">Total Users</div>
-                </div>
-                <div className="rounded-xl border bg-card p-4">
-                  <div className="text-2xl font-bold">{userStats.byRole.admin}</div>
-                  <div className="text-sm text-muted-foreground">Admins</div>
-                </div>
-                <div className="rounded-xl border bg-card p-4">
-                  <div className="text-2xl font-bold">{userStats.byRole.editor + userStats.byRole.operator}</div>
-                  <div className="text-sm text-muted-foreground">Editors/Operators</div>
-                </div>
-                <div className="rounded-xl border bg-card p-4">
-                  <div className="text-2xl font-bold">{userStats.activeLastWeek}</div>
-                  <div className="text-sm text-muted-foreground">Active This Week</div>
-                </div>
+                <StatCard
+                  title="Total Users"
+                  value={userStats.total}
+                  icon={<Users className="h-4 w-4 text-blue-600" />}
+                />
+                <StatCard
+                  title="Admins"
+                  value={userStats.byRole.admin}
+                  icon={<Shield className="h-4 w-4 text-red-600" />}
+                  variant="danger"
+                />
+                <StatCard
+                  title="Editors/Operators"
+                  value={userStats.byRole.editor + userStats.byRole.operator}
+                  icon={<Pencil className="h-4 w-4 text-blue-600" />}
+                />
+                <StatCard
+                  title="Active This Week"
+                  value={userStats.activeLastWeek}
+                  icon={<Check className="h-4 w-4 text-green-600" />}
+                  variant="success"
+                />
               </div>
 
               {/* User List */}
-              <div className="rounded-xl border bg-card">
+              <Card>
                 <div className="border-b p-4 flex items-center justify-between">
                   <h2 className="font-semibold flex items-center gap-2">
                     <Users className="h-5 w-5" />
                     User Management
                   </h2>
                   {canCreateUsers && (
-                    <button
-                      onClick={openCreateModal}
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                    >
+                    <Button size="sm" onClick={openCreateModal}>
                       <Plus className="h-4 w-4" />
                       Add User
-                    </button>
+                    </Button>
                   )}
                 </div>
                 <div className="divide-y">
@@ -491,20 +499,19 @@ function SettingsPage() {
                           </span>
                           <div className="flex items-center gap-1">
                             {canEditUsers && (
-                              <button
-                                onClick={() => openEditModal(user)}
-                                className="p-1.5 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground"
-                              >
+                              <Button variant="ghost" size="icon" onClick={() => openEditModal(user)}>
                                 <Pencil className="h-4 w-4" />
-                              </button>
+                              </Button>
                             )}
                             {canDeleteUsers && currentUserProfile.user?.id !== user.id && (
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => handleDeleteUser(user.id)}
-                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               >
                                 <Trash2 className="h-4 w-4" />
-                              </button>
+                              </Button>
                             )}
                           </div>
                         </div>
@@ -512,10 +519,10 @@ function SettingsPage() {
                     ))
                   )}
                 </div>
-              </div>
+              </Card>
 
               {/* Change My Password */}
-              <div className="rounded-xl border bg-card">
+              <Card>
                 <div className="border-b p-4">
                   <h2 className="font-semibold flex items-center gap-2">
                     <Lock className="h-5 w-5" />
@@ -524,52 +531,48 @@ function SettingsPage() {
                 </div>
                 <div className="p-4 space-y-4">
                   {changePasswordError && (
-                    <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
                       {changePasswordError}
                     </div>
                   )}
                   {changePasswordSuccess && (
-                    <div className="p-3 rounded-lg bg-green-50 border border-green-200 text-green-800 text-sm">
+                    <div className="p-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm">
                       Password changed successfully!
                     </div>
                   )}
                   <div>
-                    <label className="text-sm font-medium">Current Password</label>
-                    <input
+                    <label className="block text-sm font-medium mb-1">Current Password</label>
+                    <Input
                       type="password"
                       value={changePasswordForm.currentPassword}
                       onChange={(e) => setChangePasswordForm({ ...changePasswordForm, currentPassword: e.target.value })}
                       placeholder="Enter current password"
-                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">New Password</label>
-                    <input
+                    <label className="block text-sm font-medium mb-1">New Password</label>
+                    <Input
                       type="password"
                       value={changePasswordForm.newPassword}
                       onChange={(e) => setChangePasswordForm({ ...changePasswordForm, newPassword: e.target.value })}
                       placeholder="Enter new password"
-                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
                     />
                     <p className="mt-1 text-xs text-muted-foreground">
                       Must be at least 8 characters with uppercase, lowercase, and number
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Confirm New Password</label>
-                    <input
+                    <label className="block text-sm font-medium mb-1">Confirm New Password</label>
+                    <Input
                       type="password"
                       value={changePasswordForm.confirmPassword}
                       onChange={(e) => setChangePasswordForm({ ...changePasswordForm, confirmPassword: e.target.value })}
                       placeholder="Confirm new password"
-                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
                     />
                   </div>
-                  <button
+                  <Button
                     onClick={handleChangePassword}
                     disabled={isChangingPassword || !changePasswordForm.currentPassword || !changePasswordForm.newPassword}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
                     {isChangingPassword ? (
                       <>
@@ -579,12 +582,12 @@ function SettingsPage() {
                     ) : (
                       "Change Password"
                     )}
-                  </button>
+                  </Button>
                 </div>
-              </div>
+              </Card>
 
               {/* Role Descriptions */}
-              <div className="rounded-xl border bg-card">
+              <Card>
                 <div className="border-b p-4">
                   <h2 className="font-semibold">Role Descriptions</h2>
                 </div>
@@ -598,12 +601,12 @@ function SettingsPage() {
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             </div>
           )}
 
           {activeTab !== "notifications" && activeTab !== "access" && (
-            <div className="rounded-xl border bg-card">
+            <Card>
               <div className="border-b p-4">
                 <h2 className="font-semibold">
                   {tabs.find((t) => t.id === activeTab)?.label}
@@ -622,194 +625,181 @@ function SettingsPage() {
                   </p>
                 </div>
               </div>
-            </div>
+            </Card>
           )}
         </div>
       </div>
 
       {/* User Modal */}
-      {showUserModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background rounded-xl border shadow-lg w-full max-w-md mx-4">
-            <div className="border-b p-4 flex items-center justify-between">
-              <h3 className="font-semibold">
-                {editingUser ? "Edit User" : "Add New User"}
-              </h3>
-              <button
-                onClick={() => setShowUserModal(false)}
-                className="p-1 rounded-lg hover:bg-accent"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="p-4 space-y-4">
-              {userError && (
-                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                  {userError}
-                </div>
-              )}
+      <Dialog open={showUserModal} onOpenChange={setShowUserModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {editingUser ? "Edit User" : "Add New User"}
+            </DialogTitle>
+          </DialogHeader>
 
-              {/* Reset Password Mode Toggle for editing */}
-              {editingUser && !resetPasswordMode && (
+          <div className="space-y-4">
+            {userError && (
+              <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
+                {userError}
+              </div>
+            )}
+
+            {/* Reset Password Mode Toggle for editing */}
+            {editingUser && !resetPasswordMode && (
+              <button
+                type="button"
+                onClick={() => setResetPasswordMode(true)}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <Lock className="h-4 w-4" />
+                Reset User Password
+              </button>
+            )}
+
+            {/* Password Reset Form */}
+            {editingUser && resetPasswordMode && (
+              <>
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  Setting a new password for {editingUser.email}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">New Password</label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={userForm.password}
+                      onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                      placeholder="Enter new password"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Confirm Password</label>
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    value={userForm.confirmPassword}
+                    onChange={(e) => setUserForm({ ...userForm, confirmPassword: e.target.value })}
+                    placeholder="Confirm new password"
+                  />
+                </div>
                 <button
                   type="button"
-                  onClick={() => setResetPasswordMode(true)}
-                  className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                  onClick={() => {
+                    setResetPasswordMode(false);
+                    setUserForm({ ...userForm, password: "", confirmPassword: "" });
+                  }}
+                  className="text-sm text-muted-foreground hover:text-foreground"
                 >
-                  <Lock className="h-4 w-4" />
-                  Reset User Password
+                  Cancel password reset
                 </button>
-              )}
+              </>
+            )}
 
-              {/* Password Reset Form */}
-              {editingUser && resetPasswordMode && (
-                <>
-                  <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-                    Setting a new password for {editingUser.email}
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">New Password</label>
-                    <div className="relative mt-1">
-                      <input
-                        type={showPassword ? "text" : "password"}
-                        value={userForm.password}
-                        onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                        placeholder="Enter new password"
-                        className="w-full h-10 rounded-lg border bg-background px-3 pr-10 text-sm"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Confirm Password</label>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={userForm.confirmPassword}
-                      onChange={(e) => setUserForm({ ...userForm, confirmPassword: e.target.value })}
-                      placeholder="Confirm new password"
-                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResetPasswordMode(false);
-                      setUserForm({ ...userForm, password: "", confirmPassword: "" });
-                    }}
-                    className="text-sm text-muted-foreground hover:text-foreground"
+            {/* Regular User Fields (hidden in reset password mode) */}
+            {!resetPasswordMode && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Email</label>
+                  <Input
+                    type="email"
+                    value={userForm.email}
+                    onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+                    disabled={!!editingUser}
+                    placeholder="user@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name</label>
+                  <Input
+                    type="text"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
+                    placeholder="Full Name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Role</label>
+                  <select
+                    value={userForm.role}
+                    onChange={(e) => setUserForm({ ...userForm, role: e.target.value as User["role"] })}
+                    className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    Cancel password reset
-                  </button>
-                </>
-              )}
+                    <option value="viewer">Viewer</option>
+                    <option value="operator">Operator</option>
+                    <option value="editor">Editor</option>
+                    <option value="admin">Administrator</option>
+                  </select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {ROLE_DESCRIPTIONS[userForm.role]}
+                  </p>
+                </div>
 
-              {/* Regular User Fields (hidden in reset password mode) */}
-              {!resetPasswordMode && (
-                <>
-                  <div>
-                    <label className="text-sm font-medium">Email</label>
-                    <input
-                      type="email"
-                      value={userForm.email}
-                      onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
-                      disabled={!!editingUser}
-                      placeholder="user@example.com"
-                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm disabled:opacity-50"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Name</label>
-                    <input
-                      type="text"
-                      value={userForm.name}
-                      onChange={(e) => setUserForm({ ...userForm, name: e.target.value })}
-                      placeholder="Full Name"
-                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Role</label>
-                    <select
-                      value={userForm.role}
-                      onChange={(e) => setUserForm({ ...userForm, role: e.target.value as User["role"] })}
-                      className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
-                    >
-                      <option value="viewer">Viewer</option>
-                      <option value="operator">Operator</option>
-                      <option value="editor">Editor</option>
-                      <option value="admin">Administrator</option>
-                    </select>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {ROLE_DESCRIPTIONS[userForm.role]}
-                    </p>
-                  </div>
-
-                  {/* Password fields for new user only */}
-                  {!editingUser && (
-                    <>
-                      <div>
-                        <label className="text-sm font-medium">Password</label>
-                        <div className="relative mt-1">
-                          <input
-                            type={showPassword ? "text" : "password"}
-                            value={userForm.password}
-                            onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
-                            placeholder="Enter password"
-                            className="w-full h-10 rounded-lg border bg-background px-3 pr-10 text-sm"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                          >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Must be at least 8 characters with uppercase, lowercase, and number
-                        </p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium">Confirm Password</label>
-                        <input
+                {/* Password fields for new user only */}
+                {!editingUser && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Password</label>
+                      <div className="relative">
+                        <Input
                           type={showPassword ? "text" : "password"}
-                          value={userForm.confirmPassword}
-                          onChange={(e) => setUserForm({ ...userForm, confirmPassword: e.target.value })}
-                          placeholder="Confirm password"
-                          className="mt-1 w-full h-10 rounded-lg border bg-background px-3 text-sm"
+                          value={userForm.password}
+                          onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                          placeholder="Enter password"
+                          className="pr-10"
                         />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
                       </div>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-            <div className="border-t p-4 flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  setShowUserModal(false);
-                  setResetPasswordMode(false);
-                }}
-                className="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-accent"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={editingUser ? handleUpdateUser : handleCreateUser}
-                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
-              >
-                {resetPasswordMode ? "Reset Password" : editingUser ? "Save Changes" : "Create User"}
-              </button>
-            </div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Must be at least 8 characters with uppercase, lowercase, and number
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Confirm Password</label>
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        value={userForm.confirmPassword}
+                        onChange={(e) => setUserForm({ ...userForm, confirmPassword: e.target.value })}
+                        placeholder="Confirm password"
+                      />
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
-        </div>
-      )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowUserModal(false);
+                setResetPasswordMode(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={editingUser ? handleUpdateUser : handleCreateUser}>
+              {resetPasswordMode ? "Reset Password" : editingUser ? "Save Changes" : "Create User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

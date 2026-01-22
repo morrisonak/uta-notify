@@ -16,6 +16,7 @@ import { queueMessageDelivery, getEnabledChannels } from "../../server/delivery"
 import { formatRelativeTime } from "../../lib/utils";
 import { useSession } from "../../lib/auth-client";
 import { hasPermission } from "../../lib/permissions";
+import { Button, Badge, Card, StatCard, EmptyState } from "../../components/ui";
 
 export const Route = createFileRoute("/messages/$messageId")({
   loader: async ({ params }) => {
@@ -87,7 +88,6 @@ function MessageDetailPage() {
 
     try {
       await queueMessageDelivery({ data: { messageId: message.id } });
-      // Refresh the page to show new deliveries
       await router.invalidate();
     } catch (error) {
       setSendError(error instanceof Error ? error.message : "Failed to queue message");
@@ -104,15 +104,6 @@ function MessageDetailPage() {
     partial: <AlertTriangle className="h-4 w-4 text-amber-500" />,
   };
 
-  const statusColors: Record<string, string> = {
-    queued: "bg-amber-100 text-amber-800",
-    sending: "bg-blue-100 text-blue-800",
-    delivered: "bg-green-100 text-green-800",
-    failed: "bg-red-100 text-red-800",
-    partial: "bg-amber-100 text-amber-800",
-  };
-
-  // Calculate delivery stats
   const deliveryStats = {
     total: deliveries.length,
     delivered: deliveries.filter((d) => d.status === "delivered").length,
@@ -125,7 +116,7 @@ function MessageDetailPage() {
     : 0;
 
   return (
-    <div className="p-4 lg:p-6">
+    <div className="p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center justify-between">
@@ -148,62 +139,60 @@ function MessageDetailPage() {
             </div>
           </div>
           {canSend && channels.length > 0 && (
-            <button
-              onClick={handleSendToChannels}
-              disabled={isSending}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
+            <Button onClick={handleSendToChannels} disabled={isSending}>
               {isSending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Zap className="h-4 w-4" />
               )}
               Send to {channels.length} Channel{channels.length !== 1 ? "s" : ""}
-            </button>
+            </Button>
           )}
         </div>
         {sendError && (
-          <div className="mt-2 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+          <div className="mt-3 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
             {sendError}
           </div>
         )}
       </div>
 
       {/* Message Content */}
-      <div className="bg-background rounded-lg border p-4 mb-6">
+      <Card className="p-4 mb-6">
         <h2 className="text-sm font-semibold mb-2">Message Content</h2>
         <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-      </div>
+      </Card>
 
       {/* Delivery Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="bg-background rounded-lg border p-3">
-          <p className="text-2xl font-bold">{deliveryStats.total}</p>
-          <p className="text-xs text-muted-foreground">Total Deliveries</p>
-        </div>
-        <div className="bg-green-50 rounded-lg border border-green-200 p-3">
-          <p className="text-2xl font-bold text-green-600">{deliveryStats.delivered}</p>
-          <p className="text-xs text-green-600">Delivered</p>
-        </div>
-        <div className="bg-red-50 rounded-lg border border-red-200 p-3">
-          <p className="text-2xl font-bold text-red-600">{deliveryStats.failed}</p>
-          <p className="text-xs text-red-600">Failed</p>
-        </div>
-        <div className="bg-background rounded-lg border p-3">
-          <p className="text-2xl font-bold">{successRate}%</p>
-          <p className="text-xs text-muted-foreground">Success Rate</p>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <StatCard
+          title="Total Deliveries"
+          value={deliveryStats.total}
+        />
+        <StatCard
+          title="Delivered"
+          value={deliveryStats.delivered}
+          variant="success"
+        />
+        <StatCard
+          title="Failed"
+          value={deliveryStats.failed}
+          variant="danger"
+        />
+        <StatCard
+          title="Success Rate"
+          value={`${successRate}%`}
+        />
       </div>
 
       {/* Deliveries List */}
-      <div className="bg-background rounded-lg border">
-        <div className="p-3 border-b">
+      <Card>
+        <div className="p-4 border-b">
           <h3 className="font-semibold">Delivery Details</h3>
         </div>
         {deliveries.length > 0 ? (
           <div className="divide-y">
             {deliveries.map((delivery) => (
-              <div key={delivery.id} className="p-3">
+              <div key={delivery.id} className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     {statusIcons[delivery.status]}
@@ -216,9 +205,7 @@ function MessageDetailPage() {
                       </span>
                     )}
                   </div>
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[delivery.status]}`}>
-                    {delivery.status}
-                  </span>
+                  <Badge delivery={delivery.status}>{delivery.status}</Badge>
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   <p>Queued: {new Date(delivery.queued_at).toLocaleString()}</p>
@@ -244,21 +231,18 @@ function MessageDetailPage() {
             ))}
           </div>
         ) : (
-          <div className="p-8 text-center">
-            <div className="mb-3 rounded-full bg-muted p-3 mx-auto w-fit">
-              <Send className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="font-medium mb-1">No deliveries yet</p>
-            <p className="text-sm text-muted-foreground">
-              Delivery tracking will appear here once the message is sent.
-            </p>
-          </div>
+          <EmptyState
+            icon={<Send className="h-6 w-6 text-muted-foreground" />}
+            title="No deliveries yet"
+            description="Delivery tracking will appear here once the message is sent."
+            className="py-8"
+          />
         )}
-      </div>
+      </Card>
 
       {/* Message Metadata */}
-      <div className="mt-6 bg-background rounded-lg border p-4 text-sm">
-        <h3 className="font-semibold mb-3">Message Details</h3>
+      <Card className="mt-6 p-4 text-sm">
+        <h3 className="font-semibold mb-4">Message Details</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-muted-foreground">Message ID:</span>
@@ -277,7 +261,7 @@ function MessageDetailPage() {
             <span className="ml-2">{new Date(message.created_at).toLocaleString()}</span>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

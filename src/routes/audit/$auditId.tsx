@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  Shield,
   Clock,
   User,
   FileText,
@@ -8,11 +7,11 @@ import {
   MessageSquare,
   Users,
   Settings,
-  ExternalLink,
   ArrowRight,
 } from "lucide-react";
 import { getAuditLog, type AuditLogEntry } from "../../server/audit";
 import { requirePermissionFn } from "../../server/auth";
+import { Badge, Card } from "../../components/ui";
 
 export const Route = createFileRoute("/audit/$auditId")({
   beforeLoad: async () => {
@@ -75,12 +74,11 @@ function AuditDetailPage() {
   const parsedChanges = log.changes ? JSON.parse(log.changes) : null;
   const parsedDetails = log.details ? JSON.parse(log.details) : null;
 
-  // Determine if we can link to the resource
   const resourceRoute = resourceRoutes[log.resource_type];
   const canLinkToResource = resourceRoute && log.resource_id;
 
   return (
-    <div className="p-6 lg:p-8 max-w-3xl">
+    <div className="p-6 max-w-3xl">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-start gap-4 mb-4">
@@ -110,7 +108,6 @@ function AuditDetailPage() {
           </div>
         </div>
 
-        {/* Link to resource */}
         {canLinkToResource && (
           <Link
             to={resourceRoute}
@@ -129,8 +126,8 @@ function AuditDetailPage() {
       {/* Details Grid */}
       <div className="space-y-6">
         {/* Actor Information */}
-        <section className="rounded-xl border bg-card">
-          <div className="border-b px-4 py-3">
+        <Card>
+          <div className="border-b p-4">
             <h2 className="font-semibold flex items-center gap-2">
               <User className="h-4 w-4" />
               Actor Information
@@ -156,11 +153,11 @@ function AuditDetailPage() {
               </div>
             )}
           </div>
-        </section>
+        </Card>
 
         {/* Resource Information */}
-        <section className="rounded-xl border bg-card">
-          <div className="border-b px-4 py-3">
+        <Card>
+          <div className="border-b p-4">
             <h2 className="font-semibold flex items-center gap-2">
               {resourceIcons[log.resource_type] || <FileText className="h-4 w-4" />}
               Resource Information
@@ -180,23 +177,23 @@ function AuditDetailPage() {
               <p className="font-mono text-sm break-all">{log.resource_id || "—"}</p>
             </div>
           </div>
-        </section>
+        </Card>
 
         {/* Changes */}
         {parsedChanges && Object.keys(parsedChanges).length > 0 && (
-          <section className="rounded-xl border bg-card">
-            <div className="border-b px-4 py-3">
+          <Card>
+            <div className="border-b p-4">
               <h2 className="font-semibold">Changes</h2>
             </div>
             <div className="p-4">
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {Object.entries(parsedChanges).map(([field, change]: [string, any]) => (
-                  <div key={field} className="rounded-lg border p-3">
+                  <div key={field} className="rounded-xl border p-4">
                     <p className="text-xs text-muted-foreground uppercase mb-2">{field}</p>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-xs text-red-600 mb-1">Previous</p>
-                        <div className="rounded bg-red-50 p-2 text-sm">
+                        <div className="rounded-lg bg-red-50 p-3 text-sm">
                           {typeof change.old === "object"
                             ? JSON.stringify(change.old, null, 2)
                             : String(change.old ?? "—")}
@@ -204,7 +201,7 @@ function AuditDetailPage() {
                       </div>
                       <div>
                         <p className="text-xs text-green-600 mb-1">New</p>
-                        <div className="rounded bg-green-50 p-2 text-sm">
+                        <div className="rounded-lg bg-green-50 p-3 text-sm">
                           {typeof change.new === "object"
                             ? JSON.stringify(change.new, null, 2)
                             : String(change.new ?? "—")}
@@ -215,30 +212,30 @@ function AuditDetailPage() {
                 ))}
               </div>
             </div>
-          </section>
+          </Card>
         )}
 
         {/* Details */}
         {parsedDetails && Object.keys(parsedDetails).length > 0 && (
-          <section className="rounded-xl border bg-card">
-            <div className="border-b px-4 py-3">
+          <Card>
+            <div className="border-b p-4">
               <h2 className="font-semibold">Additional Details</h2>
             </div>
             <div className="p-4">
-              <div className="rounded-lg border bg-muted/50 p-3 font-mono text-xs overflow-x-auto">
+              <div className="rounded-xl border bg-muted/50 p-4 font-mono text-xs overflow-x-auto">
                 <pre>{JSON.stringify(parsedDetails, null, 2)}</pre>
               </div>
             </div>
-          </section>
+          </Card>
         )}
 
         {/* Request Information */}
         {(log.request_id || log.user_agent) && (
-          <section className="rounded-xl border bg-card">
-            <div className="border-b px-4 py-3">
+          <Card>
+            <div className="border-b p-4">
               <h2 className="font-semibold">Request Information</h2>
             </div>
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-4">
               {log.request_id && (
                 <div>
                   <p className="text-xs text-muted-foreground uppercase mb-1">Request ID</p>
@@ -252,12 +249,12 @@ function AuditDetailPage() {
                 </div>
               )}
             </div>
-          </section>
+          </Card>
         )}
 
         {/* Metadata */}
-        <section className="rounded-xl border bg-card">
-          <div className="border-b px-4 py-3">
+        <Card>
+          <div className="border-b p-4">
             <h2 className="font-semibold">Metadata</h2>
           </div>
           <div className="p-4 grid grid-cols-2 gap-4">
@@ -270,7 +267,7 @@ function AuditDetailPage() {
               <p className="font-mono text-sm">{log.created_at}</p>
             </div>
           </div>
-        </section>
+        </Card>
       </div>
     </div>
   );

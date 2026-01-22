@@ -14,6 +14,7 @@ import { getDashboardStats, getRecentActivity } from "../lib/server-functions";
 import { getIncidents } from "../server/incidents";
 import { formatRelativeTime } from "../lib/utils";
 import { requireAuthFn } from "../server/auth";
+import { Button, Badge, Card, CardContent, PageHeader, EmptyState, StatCard } from "../components/ui";
 
 export const Route = createFileRoute("/")({
   beforeLoad: async () => {
@@ -33,7 +34,6 @@ export const Route = createFileRoute("/")({
       };
     } catch (error) {
       console.error("Dashboard loader error:", error);
-      // Return default values on error
       return {
         stats: {
           activeIncidents: 0,
@@ -88,52 +88,54 @@ function DashboardPage() {
   };
 
   return (
-    <div className="h-full flex flex-col overflow-hidden p-4 lg:p-6">
-      {/* Header */}
-      <div className="flex-none mb-4">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of active incidents and communication status
-        </p>
-      </div>
+    <div className="h-full flex flex-col overflow-hidden p-6">
+      <PageHeader
+        title="Dashboard"
+        description="Overview of active incidents and communication status"
+        className="mb-6"
+      />
 
       {/* Stats Grid */}
-      <div className="flex-none mb-4 grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <div className="flex-none mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Active Incidents"
           value={stats.activeIncidents.toString()}
-          change={stats.activeIncidents > 0 ? "Requires attention" : "All clear"}
+          description={stats.activeIncidents > 0 ? "Requires attention" : "All clear"}
           icon={<AlertTriangle className="h-4 w-4" />}
           variant={stats.activeIncidents > 0 ? "danger" : "default"}
+          tooltip="Number of incidents currently in 'active' status that may require attention"
         />
         <StatCard
           title="Messages Today"
           value={stats.messagesToday.toString()}
-          change={`${stats.messagesToday} sent today`}
+          description={`${stats.messagesToday} sent today`}
           icon={<MessageSquare className="h-4 w-4" />}
           variant="default"
+          tooltip="Total notifications sent across all channels (email, SMS, push) today"
         />
         <StatCard
           title="Delivery Rate"
           value={stats.deliveryRate !== null ? `${stats.deliveryRate}%` : "—"}
-          change={stats.deliveryRate !== null ? "Today's rate" : "No data yet"}
+          description={stats.deliveryRate !== null ? "Today's rate" : "No data yet"}
           icon={<TrendingUp className="h-4 w-4" />}
           variant={stats.deliveryRate !== null && stats.deliveryRate >= 95 ? "success" : "default"}
+          tooltip="Percentage of messages successfully delivered to recipients today"
         />
         <StatCard
           title="Subscribers"
           value={stats.totalSubscribers.toString()}
-          change="Total active"
+          description="Total active"
           icon={<Users className="h-4 w-4" />}
           variant="default"
+          tooltip="Total number of active subscribers receiving notifications"
         />
       </div>
 
-      {/* Main Content - Incidents & Activity (fills remaining space) */}
+      {/* Main Content - Incidents & Activity */}
       <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-2">
         {/* Active Incidents */}
-        <div className="rounded-xl border bg-card flex flex-col min-h-0">
-          <div className="flex-none flex items-center justify-between border-b p-3">
+        <Card className="flex flex-col min-h-0">
+          <div className="flex-none flex items-center justify-between border-b p-4">
             <h2 className="font-semibold">Active Incidents</h2>
             <Link
               to="/incidents"
@@ -143,37 +145,35 @@ function DashboardPage() {
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto p-3">
+          <CardContent className="flex-1 min-h-0 overflow-y-auto p-4">
             {incidents.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {incidents.map((incident) => (
                   <IncidentCard key={incident.id} incident={incident} />
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <div className="mb-3 rounded-full bg-muted p-3">
-                  <Bell className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <p className="mb-1 font-medium">No active incidents</p>
-                <p className="mb-3 text-sm text-muted-foreground">
-                  All systems operating normally
-                </p>
-                <Link
-                  to="/incidents"
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create Incident
-                </Link>
-              </div>
+              <EmptyState
+                icon={<Bell className="h-6 w-6 text-muted-foreground" />}
+                title="No active incidents"
+                description="All systems operating normally"
+                action={
+                  <Button asChild size="sm">
+                    <Link to="/incidents">
+                      <Plus className="h-4 w-4" />
+                      Create Incident
+                    </Link>
+                  </Button>
+                }
+                className="h-full"
+              />
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Recent Activity */}
-        <div className="rounded-xl border bg-card flex flex-col min-h-0">
-          <div className="flex-none flex items-center justify-between border-b p-3">
+        <Card className="flex flex-col min-h-0">
+          <div className="flex-none flex items-center justify-between border-b p-4">
             <h2 className="font-semibold">Recent Activity</h2>
             <Link
               to="/reports"
@@ -195,24 +195,21 @@ function DashboardPage() {
                 />
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                <div className="mb-3 rounded-full bg-muted p-3">
-                  <Clock className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <p className="mb-1 font-medium">No recent activity</p>
-                <p className="text-sm text-muted-foreground">
-                  Activity will appear here as you use the system
-                </p>
-              </div>
+              <EmptyState
+                icon={<Clock className="h-6 w-6 text-muted-foreground" />}
+                title="No recent activity"
+                description="Activity will appear here as you use the system"
+                className="h-full"
+              />
             )}
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Quick Actions */}
-      <div className="flex-none mt-4">
-        <h2 className="mb-2 font-semibold text-sm">Quick Actions</h2>
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+      <div className="flex-none mt-6">
+        <h2 className="mb-3 font-semibold text-sm">Quick Actions</h2>
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <QuickActionCard
             title="New Incident"
             description="Create a new incident report"
@@ -255,59 +252,22 @@ interface IncidentCardProps {
 }
 
 function IncidentCard({ incident }: IncidentCardProps) {
-  const severityColors: Record<string, string> = {
-    low: "bg-green-100 text-green-800",
-    medium: "bg-amber-100 text-amber-800",
-    high: "bg-orange-100 text-orange-800",
-    critical: "bg-red-100 text-red-800",
-  };
-
   return (
     <Link
       to="/incidents/$incidentId"
       params={{ incidentId: incident.id }}
-      className="block rounded-lg border p-2.5 transition-colors hover:bg-accent"
+      className="block rounded-lg border p-3 transition-colors hover:bg-accent"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium truncate">{incident.title}</p>
           <p className="text-xs text-muted-foreground">{incident.incident_type.replace(/_/g, " ")}</p>
         </div>
-        <span
-          className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium ${severityColors[incident.severity] || severityColors.medium}`}
-        >
+        <Badge severity={incident.severity as any}>
           {incident.severity}
-        </span>
+        </Badge>
       </div>
     </Link>
-  );
-}
-
-interface StatCardProps {
-  title: string;
-  value: string;
-  change: string;
-  icon: React.ReactNode;
-  variant: "default" | "warning" | "success" | "danger";
-}
-
-function StatCard({ title, value, change, icon, variant }: StatCardProps) {
-  const variantStyles = {
-    default: "bg-card",
-    warning: "bg-amber-50 border-amber-200",
-    success: "bg-green-50 border-green-200",
-    danger: "bg-red-50 border-red-200",
-  };
-
-  return (
-    <div className={`rounded-lg border p-3 ${variantStyles[variant]}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">{title}</span>
-        <div className="rounded-md bg-muted p-1.5">{icon}</div>
-      </div>
-      <p className="mt-1 text-2xl font-bold">{value}</p>
-      <p className="text-[10px] text-muted-foreground">{change}</p>
-    </div>
   );
 }
 
@@ -326,7 +286,7 @@ function ActivityItem({ title, description, time, icon }: ActivityItemProps) {
         <p className="text-sm font-medium">{title}</p>
         <p className="text-xs text-muted-foreground truncate">{description}</p>
       </div>
-      <div className="flex items-center gap-1 text-[10px] text-muted-foreground whitespace-nowrap">
+      <div className="flex items-center gap-1 text-xs text-muted-foreground whitespace-nowrap">
         <Clock className="h-3 w-3" />
         {time}
       </div>
@@ -345,9 +305,9 @@ function QuickActionCard({ title, description, href, icon }: QuickActionCardProp
   return (
     <Link
       to={href}
-      className="group flex items-center gap-3 rounded-lg border bg-card p-2.5 transition-colors hover:border-primary hover:bg-accent"
+      className="group flex items-center gap-3 rounded-xl border bg-card p-3 transition-colors hover:border-primary hover:bg-accent"
     >
-      <div className="rounded-md bg-primary/10 p-1.5 text-primary group-hover:bg-primary group-hover:text-primary-foreground">
+      <div className="rounded-lg bg-primary/10 p-2 text-primary group-hover:bg-primary group-hover:text-primary-foreground">
         {icon}
       </div>
       <div className="min-w-0">

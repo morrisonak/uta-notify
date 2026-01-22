@@ -5,6 +5,20 @@ import { createSubscriber, getSubscribers } from "../lib/server-functions";
 import { requireAuthFn } from "../server/auth";
 import { useSession } from "../lib/auth-client";
 import { hasPermission } from "../lib/permissions";
+import {
+  Button,
+  Input,
+  Card,
+  Badge,
+  PageHeader,
+  EmptyState,
+  StatCard,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "../components/ui";
 
 export const Route = createFileRoute("/subscribers")({
   beforeLoad: async () => {
@@ -44,104 +58,76 @@ function SubscribersPage() {
   });
 
   return (
-    <div className="h-full overflow-y-auto p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Subscribers</h1>
-          <p className="text-muted-foreground">
-            Manage notification subscribers and their preferences
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {canCreate && (
-            <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-              <Upload className="h-4 w-4" />
-              Import
-            </button>
-          )}
-          {canExport && (
-            <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-              <Download className="h-4 w-4" />
-              Export
-            </button>
-          )}
-          {canCreate && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              Add Subscriber
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="h-full overflow-y-auto p-6">
+      <PageHeader
+        title="Subscribers"
+        description="Manage notification subscribers and their preferences"
+        actions={
+          <div className="flex gap-2">
+            {canCreate && (
+              <Button variant="outline">
+                <Upload className="h-4 w-4" />
+                Import
+              </Button>
+            )}
+            {canExport && (
+              <Button variant="outline">
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={() => setShowAddModal(true)}>
+                <Plus className="h-4 w-4" />
+                Add Subscriber
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* Stats */}
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-100 p-2">
-              <Users className="h-4 w-4 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-xs text-muted-foreground">Total Subscribers</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-green-100 p-2">
-              <Mail className="h-4 w-4 text-green-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.email}</p>
-              <p className="text-xs text-muted-foreground">Email</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-purple-100 p-2">
-              <Phone className="h-4 w-4 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.sms}</p>
-              <p className="text-xs text-muted-foreground">SMS</p>
-            </div>
-          </div>
-        </div>
-        <div className="rounded-xl border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-amber-100 p-2">
-              <Bell className="h-4 w-4 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{stats.push}</p>
-              <p className="text-xs text-muted-foreground">Push</p>
-            </div>
-          </div>
-        </div>
+      <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Total Subscribers"
+          value={stats.total}
+          icon={<Users className="h-4 w-4 text-blue-600" />}
+        />
+        <StatCard
+          title="Email"
+          value={stats.email}
+          icon={<Mail className="h-4 w-4 text-green-600" />}
+          variant="success"
+        />
+        <StatCard
+          title="SMS"
+          value={stats.sms}
+          icon={<Phone className="h-4 w-4 text-purple-600" />}
+        />
+        <StatCard
+          title="Push"
+          value={stats.push}
+          icon={<Bell className="h-4 w-4 text-amber-600" />}
+          variant="warning"
+        />
       </div>
 
       {/* Search */}
       <div className="mb-6">
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <input
+          <Input
             type="text"
             placeholder="Search subscribers..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-10 w-full rounded-lg border bg-background pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="pl-10"
           />
         </div>
       </div>
 
-      {/* Subscribers List or Empty State */}
-      <div className="rounded-xl border bg-card">
+      {/* Subscribers List */}
+      <Card>
         {filteredSubscribers.length > 0 ? (
           <div className="divide-y">
             {filteredSubscribers.map((subscriber) => (
@@ -174,46 +160,40 @@ function SubscribersPage() {
                       </div>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                    subscriber.status === "active"
-                      ? "bg-green-100 text-green-800"
-                      : "bg-gray-100 text-gray-800"
-                  }`}>
+                  <Badge status={subscriber.status === "active" ? "active" : "archived"}>
                     {subscriber.status}
-                  </span>
+                  </Badge>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="mb-4 rounded-full bg-muted p-4">
-              <Users className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="mb-2 text-lg font-semibold">No subscribers yet</h3>
-            <p className="mb-6 max-w-sm text-sm text-muted-foreground">
-              {canCreate
+          <EmptyState
+            icon={<Users className="h-8 w-8 text-muted-foreground" />}
+            title="No subscribers yet"
+            description={
+              canCreate
                 ? "Add subscribers manually or import them from a CSV file to start sending notifications."
-                : "No subscribers to display."}
-            </p>
-            {canCreate && (
-              <div className="flex gap-3">
-                <button className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
-                  <Upload className="h-4 w-4" />
-                  Import CSV
-                </button>
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Subscriber
-                </button>
-              </div>
-            )}
-          </div>
+                : "No subscribers to display."
+            }
+            action={
+              canCreate ? (
+                <div className="flex gap-3">
+                  <Button variant="outline">
+                    <Upload className="h-4 w-4" />
+                    Import CSV
+                  </Button>
+                  <Button onClick={() => setShowAddModal(true)}>
+                    <Plus className="h-4 w-4" />
+                    Add Subscriber
+                  </Button>
+                </div>
+              ) : undefined
+            }
+            className="py-16"
+          />
         )}
-      </div>
+      </Card>
 
       {/* Add Subscriber Modal */}
       {showAddModal && (
@@ -271,41 +251,36 @@ function AddSubscriberModal({ onClose, onSuccess }: AddSubscriberModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded-xl bg-background shadow-lg">
-        <div className="flex items-center justify-between border-b p-4">
-          <h2 className="text-lg font-semibold">Add Subscriber</h2>
-          <button onClick={onClose} className="rounded-lg p-1 hover:bg-accent">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Subscriber</DialogTitle>
+        </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+            <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
               {error}
             </div>
           )}
 
           <div>
             <label className="block text-sm font-medium mb-1">Email</label>
-            <input
+            <Input
               type="email"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="subscriber@example.com"
-              className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-1">Phone Number</label>
-            <input
+            <Input
               type="tel"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               placeholder="+1 (555) 000-0000"
-              className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
 
@@ -313,25 +288,17 @@ function AddSubscriberModal({ onClose, onSuccess }: AddSubscriberModalProps) {
             Provide at least one contact method (email or phone).
           </p>
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent"
-            >
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
               Add Subscriber
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

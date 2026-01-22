@@ -27,6 +27,19 @@ import {
 import { requireAuthFn } from "../server/auth";
 import { useSession } from "../lib/auth-client";
 import { hasPermission } from "../lib/permissions";
+import {
+  Button,
+  Input,
+  Textarea,
+  Card,
+  PageHeader,
+  EmptyState,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  toast,
+} from "../components/ui";
 
 export const Route = createFileRoute("/templates")({
   beforeLoad: async () => {
@@ -74,7 +87,7 @@ function TemplatesPage() {
       await duplicateTemplate({ data: { id } });
       window.location.reload();
     } catch (err) {
-      alert("Failed to duplicate template");
+      toast({ title: "Error", description: "Failed to duplicate template", variant: "destructive" });
     }
   };
 
@@ -84,7 +97,7 @@ function TemplatesPage() {
       await deleteTemplate({ data: { id } });
       window.location.reload();
     } catch (err) {
-      alert("Failed to delete template");
+      toast({ title: "Error", description: "Failed to delete template", variant: "destructive" });
     }
   };
 
@@ -92,51 +105,37 @@ function TemplatesPage() {
     setIsSeeding(true);
     try {
       const result = await seedDefaultTemplates();
-      alert(`Successfully added ${result.inserted} default templates!`);
+      toast({ title: "Success", description: `Successfully added ${result.inserted} default templates!`, variant: "success" });
       window.location.reload();
     } catch (err) {
-      alert("Failed to seed templates");
+      toast({ title: "Error", description: "Failed to seed templates", variant: "destructive" });
     } finally {
       setIsSeeding(false);
     }
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Message Templates</h1>
-          <p className="text-muted-foreground">
-            Manage reusable message templates for quick incident communications
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {templates.length === 0 && canCreate && (
-            <button
-              onClick={handleSeedTemplates}
-              disabled={isSeeding}
-              className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
-            >
-              {isSeeding ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileText className="h-4 w-4" />
-              )}
-              Load Default Templates
-            </button>
-          )}
-          {canCreate && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4" />
-              New Template
-            </button>
-          )}
-        </div>
-      </div>
+    <div className="h-full overflow-y-auto p-6">
+      <PageHeader
+        title="Message Templates"
+        description="Manage reusable message templates for quick incident communications"
+        actions={
+          <div className="flex gap-2">
+            {templates.length === 0 && canCreate && (
+              <Button variant="outline" onClick={handleSeedTemplates} disabled={isSeeding}>
+                {isSeeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+                Load Default Templates
+              </Button>
+            )}
+            {canCreate && (
+              <Button onClick={() => setShowCreateModal(true)}>
+                <Plus className="h-4 w-4" />
+                New Template
+              </Button>
+            )}
+          </div>
+        }
+      />
 
       {/* Templates Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -169,6 +168,14 @@ function TemplatesPage() {
           </button>
         )}
       </div>
+
+      {templates.length === 0 && !canCreate && (
+        <EmptyState
+          icon={<FileText className="h-8 w-8 text-muted-foreground" />}
+          title="No templates found"
+          description="No message templates have been created yet."
+        />
+      )}
 
       {/* Create Modal */}
       {showCreateModal && (
@@ -210,7 +217,7 @@ function TemplateCard({
     : null;
 
   return (
-    <div className="rounded-xl border bg-card p-4 hover:border-primary transition-colors">
+    <Card className="p-4 hover:border-primary transition-colors">
       <div className="flex items-start justify-between mb-3">
         <div className="rounded-lg bg-primary/10 p-2">
           <FileText className="h-5 w-5 text-primary" />
@@ -239,35 +246,23 @@ function TemplateCard({
         </span>
         <div className="flex gap-1">
           {canCreate && (
-            <button
-              onClick={onDuplicate}
-              className="rounded p-1.5 hover:bg-accent"
-              title="Duplicate"
-            >
+            <Button variant="ghost" size="icon" onClick={onDuplicate} title="Duplicate">
               <Copy className="h-4 w-4" />
-            </button>
+            </Button>
           )}
           {canEdit && (
-            <button
-              onClick={onEdit}
-              className="rounded p-1.5 hover:bg-accent"
-              title="Edit"
-            >
+            <Button variant="ghost" size="icon" onClick={onEdit} title="Edit">
               <Edit className="h-4 w-4" />
-            </button>
+            </Button>
           )}
           {canDelete && (
-            <button
-              onClick={onDelete}
-              className="rounded p-1.5 hover:bg-accent text-red-500"
-              title="Delete"
-            >
+            <Button variant="ghost" size="icon" onClick={onDelete} className="text-red-500" title="Delete">
               <Trash2 className="h-4 w-4" />
-            </button>
+            </Button>
           )}
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
 
@@ -337,23 +332,14 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-background p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">
-            {isEditing ? "Edit Template" : "Create Template"}
-          </h2>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1 hover:bg-accent"
-            disabled={isSubmitting}
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{isEditing ? "Edit Template" : "Create Template"}</DialogTitle>
+        </DialogHeader>
 
         {error && (
-          <div className="mb-4 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+          <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-800">
             {error}
           </div>
         )}
@@ -364,14 +350,11 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
               <label className="block text-sm font-medium mb-1">
                 Template Name *
               </label>
-              <input
+              <Input
                 type="text"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g., Service Disruption Alert"
-                className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={isSubmitting}
               />
             </div>
@@ -382,17 +365,13 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
               </label>
               <select
                 value={formData.incidentType}
-                onChange={(e) =>
-                  setFormData({ ...formData, incidentType: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, incidentType: e.target.value })}
                 className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={isSubmitting}
               >
                 <option value="">All Types</option>
                 {incidentTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type.replace(/_/g, " ")}
-                  </option>
+                  <option key={type} value={type}>{type.replace(/_/g, " ")}</option>
                 ))}
               </select>
             </div>
@@ -400,22 +379,16 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Channel Type
-              </label>
+              <label className="block text-sm font-medium mb-1">Channel Type</label>
               <select
                 value={formData.channelType}
-                onChange={(e) =>
-                  setFormData({ ...formData, channelType: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, channelType: e.target.value })}
                 className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 disabled={isSubmitting}
               >
                 <option value="">All Channels</option>
                 {channelTypes.map((type) => (
-                  <option key={type} value={type}>
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </option>
+                  <option key={type} value={type}>{type.charAt(0).toUpperCase() + type.slice(1)}</option>
                 ))}
               </select>
             </div>
@@ -425,9 +398,7 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
                 type="checkbox"
                 id="isDefault"
                 checked={formData.isDefault}
-                onChange={(e) =>
-                  setFormData({ ...formData, isDefault: e.target.checked })
-                }
+                onChange={(e) => setFormData({ ...formData, isDefault: e.target.checked })}
                 className="h-4 w-4 rounded border"
                 disabled={isSubmitting}
               />
@@ -439,30 +410,23 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
 
           <div>
             <label className="block text-sm font-medium mb-1">Description</label>
-            <input
+            <Input
               type="text"
               value={formData.description}
-              onChange={(e) =>
-                setFormData({ ...formData, description: e.target.value })
-              }
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               placeholder="Brief description of when to use this template"
-              className="w-full h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               disabled={isSubmitting}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Template Content *
-            </label>
-            <textarea
+            <label className="block text-sm font-medium mb-1">Template Content *</label>
+            <Textarea
               value={formData.content}
-              onChange={(e) =>
-                setFormData({ ...formData, content: e.target.value })
-              }
-              placeholder="Enter your template content. Use {{variable}} for dynamic placeholders like {{route}}, {{time}}, {{description}}..."
+              onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+              placeholder="Enter your template content. Use {{variable}} for dynamic placeholders..."
               rows={8}
-              className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none font-mono"
+              className="font-mono"
               disabled={isSubmitting}
             />
             <p className="mt-1 text-xs text-muted-foreground">
@@ -471,20 +435,11 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
             </p>
           </div>
 
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent"
-              disabled={isSubmitting}
-            >
+          <div className="flex gap-3 pt-4 border-t">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="flex-1">
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              disabled={isSubmitting}
-            >
+            </Button>
+            <Button type="submit" disabled={isSubmitting} className="flex-1">
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -495,10 +450,10 @@ function TemplateModal({ template, onClose }: TemplateModalProps) {
               ) : (
                 "Create Template"
               )}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
