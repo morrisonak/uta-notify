@@ -88,15 +88,15 @@ function DashboardPage() {
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6">
+    <div className="h-full flex flex-col overflow-y-auto lg:overflow-hidden p-6">
       <PageHeader
         title="Dashboard"
         description="Overview of active incidents and communication status"
-        className="mb-6"
+        className="flex-none mb-6"
       />
 
       {/* Stats Grid */}
-      <div className="mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="flex-none mb-6 grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Active Incidents"
           value={stats.activeIncidents.toString()}
@@ -132,9 +132,9 @@ function DashboardPage() {
       </div>
 
       {/* Main Content - Incidents & Activity */}
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
+      <div className="flex-1 min-h-0 mb-6 lg:mb-0 grid gap-4 lg:grid-cols-2">
         {/* Active Incidents */}
-        <Card className="flex flex-col min-h-[300px]">
+        <Card className="flex flex-col min-h-[300px] lg:min-h-0">
           <div className="flex items-center justify-between border-b p-4">
             <h2 className="font-semibold">Active Incidents</h2>
             <Link
@@ -172,7 +172,7 @@ function DashboardPage() {
         </Card>
 
         {/* Recent Activity */}
-        <Card className="flex flex-col min-h-[300px]">
+        <Card className="flex flex-col min-h-[300px] lg:min-h-0">
           <div className="flex items-center justify-between border-b p-4">
             <h2 className="font-semibold">Recent Activity</h2>
             <Link
@@ -206,10 +206,10 @@ function DashboardPage() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
-      <div>
+      {/* Quick Actions - visible on mobile, hidden on desktop for fixed layout */}
+      <div className="flex-none lg:hidden">
         <h2 className="mb-3 font-semibold text-sm">Quick Actions</h2>
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2">
           <QuickActionCard
             title="New Incident"
             description="Create a new incident report"
