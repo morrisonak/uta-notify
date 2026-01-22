@@ -11,20 +11,36 @@ import {
   X,
   Search,
   Clock,
+  MessageSquare,
+  Send,
+  User,
 } from "lucide-react";
 import {
   getIncident,
   updateIncident,
   deleteIncident,
+  getIncidentUpdates,
+  addIncidentUpdate,
+  type IncidentUpdate,
 } from "../../server/incidents";
+import { getCurrentUserProfile } from "../../server/users";
+import { hasPermission } from "../../lib/permissions";
 import { publishIncidentWithNotifications } from "../../lib/server-functions";
 import { formatRelativeTime } from "../../lib/utils";
 import { UTA_ROUTES, TRANSIT_MODES } from "../../data/uta-routes";
 
 export const Route = createFileRoute("/incidents/$incidentId")({
   loader: async ({ params }) => {
-    const result = await getIncident({ data: { id: params.incidentId } });
-    return { incident: result.incident };
+    const [incidentResult, updatesResult, userProfile] = await Promise.all([
+      getIncident({ data: { id: params.incidentId } }),
+      getIncidentUpdates({ data: { incidentId: params.incidentId } }),
+      getCurrentUserProfile().catch(() => ({ user: null, permissions: [] })),
+    ]);
+    return {
+      incident: incidentResult.incident,
+      updates: updatesResult.updates,
+      currentUser: userProfile.user,
+    };
   },
   component: IncidentDetailPage,
 });
@@ -44,8 +60,20 @@ interface Incident {
   estimated_resolution: string | null;
 }
 
+interface SafeUser {
+  id: string;
+  email: string;
+  name: string;
+  role: "admin" | "editor" | "operator" | "viewer";
+  permissions: string | null;
+}
+
 function IncidentDetailPage() {
-  const { incident } = Route.useLoaderData() as { incident: Incident };
+  const { incident, updates, currentUser } = Route.useLoaderData() as {
+    incident: Incident;
+    updates: IncidentUpdate[];
+    currentUser: SafeUser | null;
+  };
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -54,6 +82,8 @@ function IncidentDetailPage() {
   const [showRouteDropdown, setShowRouteDropdown] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [sendNotifications, setSendNotifications] = useState(true);
+  const [newUpdateContent, setNewUpdateContent] = useState("");
+  const [isAddingUpdate, setIsAddingUpdate] = useState(false);
   const [formData, setFormData] = useState({
     title: incident.title,
     severity: incident.severity,
@@ -66,6 +96,9 @@ function IncidentDetailPage() {
       ? JSON.parse(incident.affected_routes)
       : [],
   });
+
+  // Check if user can add updates (everyone except viewers)
+  const canAddUpdates = currentUser && hasPermission(currentUser, "incidents.edit");
 
   const severityColors: Record<string, string> = {
     low: "bg-green-100 text-green-800",
@@ -230,6 +263,39 @@ function IncidentDetailPage() {
       default:
         return [];
     }
+  };
+
+  const handleAddUpdate = async () => {
+    if (!newUpdateContent.trim()) return;
+
+    setIsAddingUpdate(true);
+    setError(null);
+    try {
+      await addIncidentUpdate({
+        data: {
+          incidentId: incident.id,
+          content: newUpdateContent.trim(),
+        },
+      });
+      setNewUpdateContent("");
+      router.invalidate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add update");
+    } finally {
+      setIsAddingUpdate(false);
+    }
+  };
+
+  const formatUpdateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
   const affectedModes = incident.affected_modes ? JSON.parse(incident.affected_modes) : [];
@@ -463,6 +529,80 @@ function IncidentDetailPage() {
               <p className="text-sm text-amber-700 whitespace-pre-wrap">{incident.internal_notes}</p>
             </div>
           )}
+
+          {/* Updates Section */}
+          <div className="bg-background rounded-lg border">
+            <div className="border-b p-4">
+              <h3 className="text-sm font-semibold flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Updates ({updates.length})
+              </h3>
+            </div>
+
+            {/* Updates List */}
+            {updates.length > 0 && (
+              <div className="divide-y">
+                {updates.map((update) => (
+                  <div key={update.id} className="p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm">{update.created_by_name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatUpdateTime(update.created_at)}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-sm whitespace-pre-wrap">{update.content}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {updates.length === 0 && !canAddUpdates && (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No updates yet
+              </div>
+            )}
+
+            {/* Add Update Form (only for non-viewers) */}
+            {canAddUpdates && (
+              <div className="p-4 border-t bg-muted/30">
+                <div className="flex gap-3">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <User className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <textarea
+                      value={newUpdateContent}
+                      onChange={(e) => setNewUpdateContent(e.target.value)}
+                      placeholder="Add an update..."
+                      rows={2}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                    />
+                    <div className="flex justify-end mt-2">
+                      <button
+                        onClick={handleAddUpdate}
+                        disabled={isAddingUpdate || !newUpdateContent.trim()}
+                        className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {isAddingUpdate ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Send className="h-4 w-4" />
+                        )}
+                        Post Update
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <div className="bg-background rounded-lg border p-4 text-sm">
             <div className="grid grid-cols-2 gap-4">

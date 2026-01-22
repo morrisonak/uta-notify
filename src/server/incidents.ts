@@ -38,6 +38,15 @@ export interface Incident {
   archived_at: string | null;
 }
 
+export interface IncidentUpdate {
+  id: string;
+  incident_id: string;
+  content: string;
+  created_by: string;
+  created_by_name: string;
+  created_at: string;
+}
+
 // ============================================
 // INPUT VALIDATORS
 // ============================================
@@ -78,6 +87,15 @@ const GetIncidentInput = z.object({
 
 const DeleteIncidentInput = z.object({
   id: z.string(),
+});
+
+const AddIncidentUpdateInput = z.object({
+  incidentId: z.string(),
+  content: z.string().min(1).max(2000),
+});
+
+const GetIncidentUpdatesInput = z.object({
+  incidentId: z.string(),
 });
 
 // ============================================
@@ -431,3 +449,83 @@ export const getActiveIncidents = createServerFn({ method: "GET" }).handler(asyn
 
   return { incidents: result.results };
 });
+
+/**
+ * Add an update to an incident
+ * Requires incidents.edit permission (excludes viewers)
+ */
+export const addIncidentUpdate = createServerFn({ method: "POST" })
+  .inputValidator(AddIncidentUpdateInput)
+  .handler(async ({ data }) => {
+    const auth = await requirePermission("incidents.edit");
+    const db = getDB();
+
+    // Verify incident exists
+    const incident = await db
+      .prepare("SELECT id FROM incidents WHERE id = ?")
+      .bind(data.incidentId)
+      .first<{ id: string }>();
+
+    if (!incident) {
+      throw new Error("Incident not found");
+    }
+
+    const id = generateId("upd");
+    const createdAt = new Date().toISOString();
+
+    await db
+      .prepare(
+        `INSERT INTO incident_updates (id, incident_id, content, created_by, created_by_name, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .bind(id, data.incidentId, data.content, auth.user.id, auth.user.name, createdAt)
+      .run();
+
+    // Also update the incident's updated_at timestamp
+    await db
+      .prepare("UPDATE incidents SET updated_at = ? WHERE id = ?")
+      .bind(createdAt, data.incidentId)
+      .run();
+
+    await logAudit({
+      action: "update",
+      resourceType: "incident",
+      resourceId: data.incidentId,
+      actorId: auth.user.id,
+      actorName: auth.user.name,
+      details: { updateContent: data.content },
+    });
+
+    return {
+      success: true,
+      update: {
+        id,
+        incident_id: data.incidentId,
+        content: data.content,
+        created_by: auth.user.id,
+        created_by_name: auth.user.name,
+        created_at: createdAt,
+      },
+    };
+  });
+
+/**
+ * Get all updates for an incident
+ */
+export const getIncidentUpdates = createServerFn({ method: "GET" })
+  .inputValidator(GetIncidentUpdatesInput)
+  .handler(async ({ data }) => {
+    await requirePermission("incidents.view");
+    const db = getDB();
+
+    const result = await db
+      .prepare(
+        `SELECT * FROM incident_updates
+         WHERE incident_id = ?
+         ORDER BY created_at ASC`
+      )
+      .bind(data.incidentId)
+      .all<IncidentUpdate>();
+
+    return { updates: result.results };
+  });
