@@ -1,5 +1,5 @@
 import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Loader2,
   Play,
@@ -14,6 +14,10 @@ import {
   MessageSquare,
   Send,
   User,
+  FileText,
+  ChevronDown,
+  Star,
+  Sparkles,
 } from "lucide-react";
 import {
   getIncident,
@@ -26,6 +30,10 @@ import {
 import { getCurrentUserProfile } from "../../server/users";
 import { hasPermission } from "../../lib/permissions";
 import { publishIncidentWithNotifications } from "../../lib/server-functions";
+import {
+  getTemplatesForIncident,
+  renderTemplateWithIncident,
+} from "../../server/templates";
 import { formatRelativeTime } from "../../lib/utils";
 import { UTA_ROUTES, TRANSIT_MODES } from "../../data/uta-routes";
 
@@ -60,6 +68,15 @@ interface Incident {
   estimated_resolution: string | null;
 }
 
+interface TemplateOption {
+  id: string;
+  name: string;
+  description: string | null;
+  channel_type: string | null;
+  content: string;
+  is_default: number;
+}
+
 interface SafeUser {
   id: string;
   email: string;
@@ -84,6 +101,13 @@ function IncidentDetailPage() {
   const [sendNotifications, setSendNotifications] = useState(true);
   const [newUpdateContent, setNewUpdateContent] = useState("");
   const [isAddingUpdate, setIsAddingUpdate] = useState(false);
+
+  // Template state for publish dialog
+  const [templates, setTemplates] = useState<TemplateOption[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [isRenderingTemplate, setIsRenderingTemplate] = useState(false);
+  const [showTemplateDropdown, setShowTemplateDropdown] = useState(false);
   const [formData, setFormData] = useState({
     title: incident.title,
     severity: incident.severity,
@@ -157,11 +181,59 @@ function IncidentDetailPage() {
     }));
   };
 
+  // Load templates when publish dialog opens
+  useEffect(() => {
+    if (showPublishDialog) {
+      loadTemplates();
+    }
+  }, [showPublishDialog]);
+
+  const loadTemplates = async () => {
+    setIsLoadingTemplates(true);
+    try {
+      const result = await getTemplatesForIncident({
+        data: { incidentType: incident.incident_type },
+      });
+      setTemplates(result.templates);
+    } catch (err) {
+      console.error("Failed to load templates:", err);
+      setTemplates([]);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  };
+
+  const handleTemplateSelect = async (templateId: string) => {
+    if (!templateId) {
+      setSelectedTemplateId("");
+      return;
+    }
+
+    setSelectedTemplateId(templateId);
+    setShowTemplateDropdown(false);
+    setIsRenderingTemplate(true);
+
+    try {
+      const result = await renderTemplateWithIncident({
+        data: {
+          templateId,
+          incidentId: incident.id,
+        },
+      });
+      setFormData({ ...formData, publicMessage: result.rendered });
+    } catch (err) {
+      console.error("Failed to render template:", err);
+    } finally {
+      setIsRenderingTemplate(false);
+    }
+  };
+
   const handleStatusChange = async (
     newStatus: "active" | "updated" | "resolved" | "archived"
   ) => {
     if (incident.status === "draft" && newStatus === "active") {
       setShowPublishDialog(true);
+      setSelectedTemplateId("");
       return;
     }
 
@@ -646,16 +718,107 @@ function IncidentDetailPage() {
               </div>
 
               {sendNotifications && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Notification Message</label>
-                  <textarea
-                    rows={3}
-                    value={formData.publicMessage}
-                    onChange={(e) => setFormData({ ...formData, publicMessage: e.target.value })}
-                    placeholder="Message to send to subscribers..."
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                  />
-                </div>
+                <>
+                  {/* Template Selector */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1 flex items-center gap-1.5">
+                      <FileText className="h-4 w-4" />
+                      Message Template
+                    </label>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setShowTemplateDropdown(!showTemplateDropdown)}
+                        disabled={isLoadingTemplates || isUpdating}
+                        className="w-full h-10 rounded-lg border bg-background px-3 text-sm text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+                      >
+                        {isLoadingTemplates ? (
+                          <span className="text-muted-foreground flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Loading templates...
+                          </span>
+                        ) : selectedTemplateId ? (
+                          <span className="flex items-center gap-2 truncate">
+                            {templates.find((t) => t.id === selectedTemplateId)?.is_default ? (
+                              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />
+                            ) : null}
+                            {templates.find((t) => t.id === selectedTemplateId)?.name}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {templates.length > 0 ? "Select a template..." : "No templates available"}
+                          </span>
+                        )}
+                        <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      </button>
+
+                      {showTemplateDropdown && templates.length > 0 && (
+                        <>
+                          <div className="fixed inset-0 z-10" onClick={() => setShowTemplateDropdown(false)} />
+                          <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border bg-background shadow-lg">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedTemplateId("");
+                                setShowTemplateDropdown(false);
+                              }}
+                              className="w-full px-3 py-2 text-sm text-left hover:bg-accent text-muted-foreground"
+                            >
+                              No template (write custom)
+                            </button>
+                            <div className="border-t" />
+                            {templates.map((template) => (
+                              <button
+                                key={template.id}
+                                type="button"
+                                onClick={() => handleTemplateSelect(template.id)}
+                                className={`w-full px-3 py-2 text-sm text-left hover:bg-accent ${
+                                  selectedTemplateId === template.id ? "bg-accent" : ""
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {template.is_default ? (
+                                    <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 flex-shrink-0" />
+                                  ) : null}
+                                  <span className="font-medium truncate">{template.name}</span>
+                                  {template.channel_type && (
+                                    <span className="text-xs bg-muted px-1.5 py-0.5 rounded flex-shrink-0">
+                                      {template.channel_type}
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Notification Message */}
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Notification Message</label>
+                    {isRenderingTemplate ? (
+                      <div className="w-full h-20 rounded-lg border bg-muted/50 flex items-center justify-center">
+                        <span className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 animate-pulse" />
+                          Applying template...
+                        </span>
+                      </div>
+                    ) : (
+                      <textarea
+                        rows={4}
+                        value={formData.publicMessage}
+                        onChange={(e) => setFormData({ ...formData, publicMessage: e.target.value })}
+                        placeholder="Message to send to subscribers..."
+                        className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+                      />
+                    )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formData.publicMessage.length} characters
+                    </p>
+                  </div>
+                </>
               )}
             </div>
 

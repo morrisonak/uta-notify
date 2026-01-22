@@ -822,3 +822,108 @@ export const getTemplatesForIncident = createServerFn({ method: "GET" })
 
     return { templates: result.results };
   });
+
+/**
+ * Render a template with incident data
+ * Automatically substitutes incident fields into template variables
+ */
+const RenderTemplateWithIncidentInput = z.object({
+  templateId: z.string(),
+  incidentId: z.string(),
+  additionalVariables: z.record(z.string()).optional(),
+});
+
+export const renderTemplateWithIncident = createServerFn({ method: "POST" })
+  .inputValidator(RenderTemplateWithIncidentInput)
+  .handler(async ({ data }) => {
+    await requirePermission("templates.view");
+    const db = getDB();
+
+    // Get template
+    const template = await db
+      .prepare("SELECT content FROM templates WHERE id = ?")
+      .bind(data.templateId)
+      .first<{ content: string }>();
+
+    if (!template) {
+      throw new Error("Template not found");
+    }
+
+    // Get incident
+    const incident = await db
+      .prepare("SELECT * FROM incidents WHERE id = ?")
+      .bind(data.incidentId)
+      .first<{
+        id: string;
+        incident_number: number | null;
+        incident_type: string;
+        severity: string;
+        status: string;
+        title: string;
+        affected_modes: string | null;
+        affected_routes: string | null;
+        start_time: string | null;
+        estimated_resolution: string | null;
+        public_message: string | null;
+      }>();
+
+    if (!incident) {
+      throw new Error("Incident not found");
+    }
+
+    // Parse JSON fields
+    const affectedModes = incident.affected_modes
+      ? JSON.parse(incident.affected_modes).join(", ")
+      : "";
+    const affectedRoutes = incident.affected_routes
+      ? JSON.parse(incident.affected_routes).join(", ")
+      : "";
+
+    // Build variables from incident data
+    const variables: Record<string, string> = {
+      // Incident fields
+      title: incident.title,
+      incident_title: incident.title,
+      incident_type: incident.incident_type.replace(/_/g, " "),
+      severity: incident.severity,
+      status: incident.status,
+      routes: affectedRoutes,
+      affected_routes: affectedRoutes,
+      modes: affectedModes,
+      affected_modes: affectedModes,
+      description: incident.public_message || "",
+      public_message: incident.public_message || "",
+      start_time: incident.start_time
+        ? new Date(incident.start_time).toLocaleString()
+        : "",
+      resolution_time: incident.estimated_resolution
+        ? new Date(incident.estimated_resolution).toLocaleString()
+        : "TBD",
+      estimated_resolution: incident.estimated_resolution
+        ? new Date(incident.estimated_resolution).toLocaleString()
+        : "TBD",
+      incident_number: incident.incident_number?.toString() || "",
+      incident_id: incident.id,
+
+      // Agency info
+      agency_name: "UTA",
+      agency_phone: "801-RIDE-UTA",
+      agency_website: "rideuta.com",
+
+      // Current date/time
+      current_date: new Date().toLocaleDateString(),
+      current_time: new Date().toLocaleTimeString(),
+
+      // Merge any additional variables
+      ...(data.additionalVariables || {}),
+    };
+
+    // Replace {{variable}} placeholders with values
+    let rendered = template.content;
+    for (const [key, value] of Object.entries(variables)) {
+      const regex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "gi");
+      rendered = rendered.replace(regex, value);
+    }
+
+    return { rendered, variables };
+  });
