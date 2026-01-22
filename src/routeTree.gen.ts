@@ -22,6 +22,7 @@ import { Route as MessagesNewRouteImport } from './routes/messages/new'
 import { Route as MessagesMessageIdRouteImport } from './routes/messages/$messageId'
 import { Route as IncidentsNewRouteImport } from './routes/incidents/new'
 import { Route as IncidentsIncidentIdRouteImport } from './routes/incidents/$incidentId'
+import { Route as AuditAuditIdRouteImport } from './routes/audit/$auditId'
 
 const TemplatesRoute = TemplatesRouteImport.update({
   id: '/templates',
@@ -88,10 +89,15 @@ const IncidentsIncidentIdRoute = IncidentsIncidentIdRouteImport.update({
   path: '/$incidentId',
   getParentRoute: () => IncidentsRoute,
 } as any)
+const AuditAuditIdRoute = AuditAuditIdRouteImport.update({
+  id: '/$auditId',
+  path: '/$auditId',
+  getParentRoute: () => AuditRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/audit': typeof AuditRoute
+  '/audit': typeof AuditRouteWithChildren
   '/incidents': typeof IncidentsRouteWithChildren
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRouteWithChildren
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/subscribers': typeof SubscribersRoute
   '/templates': typeof TemplatesRoute
+  '/audit/$auditId': typeof AuditAuditIdRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/incidents/new': typeof IncidentsNewRoute
   '/messages/$messageId': typeof MessagesMessageIdRoute
@@ -106,7 +113,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/audit': typeof AuditRoute
+  '/audit': typeof AuditRouteWithChildren
   '/incidents': typeof IncidentsRouteWithChildren
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRouteWithChildren
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/subscribers': typeof SubscribersRoute
   '/templates': typeof TemplatesRoute
+  '/audit/$auditId': typeof AuditAuditIdRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/incidents/new': typeof IncidentsNewRoute
   '/messages/$messageId': typeof MessagesMessageIdRoute
@@ -122,7 +130,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/audit': typeof AuditRoute
+  '/audit': typeof AuditRouteWithChildren
   '/incidents': typeof IncidentsRouteWithChildren
   '/login': typeof LoginRoute
   '/messages': typeof MessagesRouteWithChildren
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/subscribers': typeof SubscribersRoute
   '/templates': typeof TemplatesRoute
+  '/audit/$auditId': typeof AuditAuditIdRoute
   '/incidents/$incidentId': typeof IncidentsIncidentIdRoute
   '/incidents/new': typeof IncidentsNewRoute
   '/messages/$messageId': typeof MessagesMessageIdRoute
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/subscribers'
     | '/templates'
+    | '/audit/$auditId'
     | '/incidents/$incidentId'
     | '/incidents/new'
     | '/messages/$messageId'
@@ -162,6 +172,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/subscribers'
     | '/templates'
+    | '/audit/$auditId'
     | '/incidents/$incidentId'
     | '/incidents/new'
     | '/messages/$messageId'
@@ -177,6 +188,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/subscribers'
     | '/templates'
+    | '/audit/$auditId'
     | '/incidents/$incidentId'
     | '/incidents/new'
     | '/messages/$messageId'
@@ -185,7 +197,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AuditRoute: typeof AuditRoute
+  AuditRoute: typeof AuditRouteWithChildren
   IncidentsRoute: typeof IncidentsRouteWithChildren
   LoginRoute: typeof LoginRoute
   MessagesRoute: typeof MessagesRouteWithChildren
@@ -288,8 +300,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IncidentsIncidentIdRouteImport
       parentRoute: typeof IncidentsRoute
     }
+    '/audit/$auditId': {
+      id: '/audit/$auditId'
+      path: '/$auditId'
+      fullPath: '/audit/$auditId'
+      preLoaderRoute: typeof AuditAuditIdRouteImport
+      parentRoute: typeof AuditRoute
+    }
   }
 }
+
+interface AuditRouteChildren {
+  AuditAuditIdRoute: typeof AuditAuditIdRoute
+}
+
+const AuditRouteChildren: AuditRouteChildren = {
+  AuditAuditIdRoute: AuditAuditIdRoute,
+}
+
+const AuditRouteWithChildren = AuditRoute._addFileChildren(AuditRouteChildren)
 
 interface IncidentsRouteChildren {
   IncidentsIncidentIdRoute: typeof IncidentsIncidentIdRoute
@@ -321,7 +350,7 @@ const MessagesRouteWithChildren = MessagesRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AuditRoute: AuditRoute,
+  AuditRoute: AuditRouteWithChildren,
   IncidentsRoute: IncidentsRouteWithChildren,
   LoginRoute: LoginRoute,
   MessagesRoute: MessagesRouteWithChildren,

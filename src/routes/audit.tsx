@@ -1,9 +1,8 @@
-import { createFileRoute, useLoaderData } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, useMatches } from "@tanstack/react-router";
 import { useState } from "react";
 import {
   Shield,
   Search,
-  Filter,
   User,
   Clock,
   FileText,
@@ -13,7 +12,9 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   RefreshCw,
+  ArrowLeft,
 } from "lucide-react";
 import { getAuditLogs, getAuditStats, type AuditLogEntry } from "../server/audit";
 import { requirePermissionFn } from "../server/auth";
@@ -30,7 +31,7 @@ export const Route = createFileRoute("/audit")({
     ]);
     return { logsData, stats };
   },
-  component: AuditLogPage,
+  component: AuditLayout,
 });
 
 const actionColors: Record<string, string> = {
@@ -56,7 +57,7 @@ const resourceIcons: Record<string, React.ReactNode> = {
   settings: <Settings className="h-4 w-4" />,
 };
 
-function AuditLogPage() {
+function AuditLayout() {
   const data = Route.useLoaderData() as {
     logsData: { logs: AuditLogEntry[]; total: number };
     stats: {
@@ -68,6 +69,7 @@ function AuditLogPage() {
     };
   };
   const { logsData, stats } = data;
+  const matches = useMatches();
   const [logs, setLogs] = useState<AuditLogEntry[]>(logsData.logs);
   const [total, setTotal] = useState(logsData.total);
   const [offset, setOffset] = useState(0);
@@ -75,8 +77,12 @@ function AuditLogPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [resourceFilter, setResourceFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
-  const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
   const limit = 50;
+
+  // Check if we're on a child route (detail view)
+  const isChildRoute = matches.some(
+    (match) => match.routeId === "/audit/$auditId"
+  );
 
   const loadLogs = async (newOffset: number = 0) => {
     setIsLoading(true);
@@ -127,338 +133,214 @@ function AuditLogPage() {
   });
 
   return (
-    <div className="h-full overflow-y-auto">
-      <div className="p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="h-full flex overflow-hidden">
+      {/* Left Panel - Audit Logs List */}
+      <div className={`${isChildRoute ? "hidden lg:flex" : "flex"} flex-col w-full lg:w-96 border-r bg-background`}>
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="flex-none p-4 border-b">
+          <div className="flex items-center gap-3 mb-3">
             <div className="rounded-lg bg-primary/10 p-2">
-              <Shield className="h-6 w-6 text-primary" />
+              <Shield className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold">Audit Log</h1>
-              <p className="text-muted-foreground">
-                Track all system activity and user actions
+              <h1 className="text-xl font-bold">Audit Log</h1>
+              <p className="text-sm text-muted-foreground">
+                {stats.total.toLocaleString()} total events
               </p>
             </div>
           </div>
-        </div>
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4 mb-6">
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">Total Events</p>
-            <p className="text-2xl font-bold">{stats.total.toLocaleString()}</p>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            <div className="rounded-lg border bg-card p-2">
+              <p className="text-xs text-muted-foreground">Today</p>
+              <p className="text-lg font-bold">{stats.today.toLocaleString()}</p>
+            </div>
+            <div className="rounded-lg border bg-card p-2">
+              <p className="text-xs text-muted-foreground">Top Action</p>
+              <p className="text-lg font-bold capitalize truncate">
+                {stats.byAction[0]?.action || "—"}
+              </p>
+            </div>
           </div>
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">Today</p>
-            <p className="text-2xl font-bold">{stats.today.toLocaleString()}</p>
-          </div>
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">Top Action (7d)</p>
-            <p className="text-2xl font-bold capitalize">
-              {stats.byAction[0]?.action || "—"}
-            </p>
-          </div>
-          <div className="rounded-xl border bg-card p-4">
-            <p className="text-sm text-muted-foreground">Top Resource (7d)</p>
-            <p className="text-2xl font-bold capitalize">
-              {stats.byResource[0]?.resource_type || "—"}
-            </p>
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-3 mb-6">
-          <div className="relative flex-1 min-w-[200px]">
+          {/* Search */}
+          <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search logs..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 w-full rounded-lg border bg-background pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="h-9 w-full rounded-lg border bg-background pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
-          <select
-            value={resourceFilter}
-            onChange={(e) => {
-              setResourceFilter(e.target.value);
-              setTimeout(handleFilterChange, 0);
-            }}
-            className="h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">All Resources</option>
-            <option value="incident">Incidents</option>
-            <option value="message">Messages</option>
-            <option value="template">Templates</option>
-            <option value="subscriber">Subscribers</option>
-            <option value="user">Users</option>
-            <option value="settings">Settings</option>
-          </select>
-          <select
-            value={actionFilter}
-            onChange={(e) => {
-              setActionFilter(e.target.value);
-              setTimeout(handleFilterChange, 0);
-            }}
-            className="h-10 rounded-lg border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          >
-            <option value="">All Actions</option>
-            <option value="create">Create</option>
-            <option value="update">Update</option>
-            <option value="delete">Delete</option>
-            <option value="publish">Publish</option>
-            <option value="resolve">Resolve</option>
-            <option value="archive">Archive</option>
-            <option value="send">Send</option>
-            <option value="login">Login</option>
-          </select>
-          <button
-            onClick={() => loadLogs(0)}
-            disabled={isLoading}
-            className="inline-flex items-center gap-2 rounded-lg border bg-background px-4 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
+
+          {/* Filters */}
+          <div className="flex gap-2">
+            <select
+              value={resourceFilter}
+              onChange={(e) => {
+                setResourceFilter(e.target.value);
+                setTimeout(handleFilterChange, 0);
+              }}
+              className="h-8 flex-1 rounded-lg border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">All Resources</option>
+              <option value="incident">Incidents</option>
+              <option value="message">Messages</option>
+              <option value="template">Templates</option>
+              <option value="subscriber">Subscribers</option>
+              <option value="user">Users</option>
+            </select>
+            <select
+              value={actionFilter}
+              onChange={(e) => {
+                setActionFilter(e.target.value);
+                setTimeout(handleFilterChange, 0);
+              }}
+              className="h-8 flex-1 rounded-lg border bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              <option value="">All Actions</option>
+              <option value="create">Create</option>
+              <option value="update">Update</option>
+              <option value="delete">Delete</option>
+              <option value="publish">Publish</option>
+              <option value="resolve">Resolve</option>
+              <option value="send">Send</option>
+            </select>
+            <button
+              onClick={() => loadLogs(0)}
+              disabled={isLoading}
+              className="inline-flex items-center justify-center h-8 w-8 rounded-lg border bg-background hover:bg-accent disabled:opacity-50"
+              title="Refresh"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
 
-        {/* Logs Table */}
-        <div className="rounded-xl border bg-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                    Time
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                    User
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                    Action
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                    Resource
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">
-                    Details
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {filteredLogs.length > 0 ? (
-                  filteredLogs.map((log) => (
-                    <tr
-                      key={log.id}
-                      className="hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => setSelectedLog(log)}
-                    >
-                      <td className="px-4 py-3 text-sm whitespace-nowrap">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Clock className="h-3 w-3" />
-                          {formatRelativeTime(log.created_at)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                            <User className="h-3 w-3 text-primary" />
-                          </div>
-                          <span className="font-medium">
-                            {log.actor_name || log.actor_type}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                            actionColors[log.action] || "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {log.action}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">
-                            {resourceIcons[log.resource_type] || <FileText className="h-4 w-4" />}
-                          </span>
-                          <span className="capitalize">{log.resource_type}</span>
-                          {log.resource_name && (
-                            <span className="text-muted-foreground">
-                              "{log.resource_name}"
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">
-                        {log.changes ? (
-                          <span className="text-blue-600">Changed fields</span>
-                        ) : log.details ? (
-                          <span>Has details</span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center">
-                      <div className="flex flex-col items-center">
-                        <Shield className="h-8 w-8 text-muted-foreground mb-2" />
-                        <p className="font-medium">No audit logs found</p>
-                        <p className="text-sm text-muted-foreground">
-                          Activity will appear here as users interact with the system
-                        </p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {total > limit && (
-            <div className="flex items-center justify-between border-t px-4 py-3">
-              <p className="text-sm text-muted-foreground">
-                Showing {offset + 1} - {Math.min(offset + limit, total)} of {total}
-              </p>
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePrevPage}
-                  disabled={offset === 0 || isLoading}
-                  className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </button>
-                <button
-                  onClick={handleNextPage}
-                  disabled={offset + limit >= total || isLoading}
-                  className="inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm hover:bg-accent disabled:opacity-50"
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+        {/* Logs List */}
+        <div className="flex-1 overflow-y-auto">
+          {filteredLogs.length > 0 ? (
+            <div className="divide-y">
+              {filteredLogs.map((log) => (
+                <AuditLogListItem key={log.id} log={log} />
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full p-4 text-center">
+              <div className="mb-3 rounded-full bg-muted p-3">
+                <Shield className="h-6 w-6 text-muted-foreground" />
               </div>
+              <p className="mb-1 font-medium">No audit logs found</p>
+              <p className="text-sm text-muted-foreground">
+                {searchQuery || resourceFilter || actionFilter
+                  ? "Try adjusting your filters"
+                  : "Activity will appear here"}
+              </p>
             </div>
           )}
         </div>
 
-        {/* Detail Modal */}
-        {selectedLog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl bg-background p-6 shadow-xl m-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Audit Log Details</h2>
-                <button
-                  onClick={() => setSelectedLog(null)}
-                  className="rounded-lg p-1 hover:bg-accent"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">
-                      Timestamp
-                    </p>
-                    <p className="font-medium">
-                      {new Date(selectedLog.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">
-                      Actor
-                    </p>
-                    <p className="font-medium">
-                      {selectedLog.actor_name || selectedLog.actor_type}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">
-                      Action
-                    </p>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                        actionColors[selectedLog.action] || "bg-gray-100"
-                      }`}
-                    >
-                      {selectedLog.action}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">
-                      Resource
-                    </p>
-                    <p className="font-medium capitalize">
-                      {selectedLog.resource_type}
-                      {selectedLog.resource_name && `: ${selectedLog.resource_name}`}
-                    </p>
-                  </div>
-                </div>
-
-                {selectedLog.ip_address && (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">
-                      IP Address
-                    </p>
-                    <p className="font-mono text-sm">{selectedLog.ip_address}</p>
-                  </div>
-                )}
-
-                {selectedLog.changes && (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">
-                      Changes
-                    </p>
-                    <div className="rounded-lg border bg-muted/50 p-3 font-mono text-xs overflow-x-auto">
-                      <pre>{JSON.stringify(JSON.parse(selectedLog.changes), null, 2)}</pre>
-                    </div>
-                  </div>
-                )}
-
-                {selectedLog.details && (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">
-                      Details
-                    </p>
-                    <div className="rounded-lg border bg-muted/50 p-3 font-mono text-xs overflow-x-auto">
-                      <pre>{JSON.stringify(JSON.parse(selectedLog.details), null, 2)}</pre>
-                    </div>
-                  </div>
-                )}
-
-                {selectedLog.user_agent && (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase mb-1">
-                      User Agent
-                    </p>
-                    <p className="text-xs text-muted-foreground break-all">
-                      {selectedLog.user_agent}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={() => setSelectedLog(null)}
-                  className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent"
-                >
-                  Close
-                </button>
-              </div>
+        {/* Pagination */}
+        {total > limit && (
+          <div className="flex-none flex items-center justify-between border-t px-4 py-2">
+            <p className="text-xs text-muted-foreground">
+              {offset + 1} - {Math.min(offset + limit, total)} of {total}
+            </p>
+            <div className="flex gap-1">
+              <button
+                onClick={handlePrevPage}
+                disabled={offset === 0 || isLoading}
+                className="inline-flex items-center justify-center h-7 w-7 rounded border hover:bg-accent disabled:opacity-50"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                onClick={handleNextPage}
+                disabled={offset + limit >= total || isLoading}
+                className="inline-flex items-center justify-center h-7 w-7 rounded border hover:bg-accent disabled:opacity-50"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Right Panel - Detail View / Child Route */}
+      <div className={`${isChildRoute ? "flex" : "hidden lg:flex"} flex-1 flex-col bg-muted/30`}>
+        {isChildRoute ? (
+          <>
+            {/* Mobile back button */}
+            <div className="lg:hidden flex-none p-2 border-b bg-background">
+              <Link
+                to="/audit"
+                className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to list
+              </Link>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <Outlet />
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <div className="mb-4 rounded-full bg-muted p-4">
+              <Shield className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <h2 className="text-lg font-semibold mb-2">Select an audit log entry</h2>
+            <p className="text-sm text-muted-foreground">
+              Choose an entry from the list to view full details
+            </p>
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+interface AuditLogListItemProps {
+  log: AuditLogEntry;
+}
+
+function AuditLogListItem({ log }: AuditLogListItemProps) {
+  return (
+    <Link
+      to="/audit/$auditId"
+      params={{ auditId: log.id }}
+      className="flex items-start gap-3 p-3 hover:bg-accent/50 transition-colors"
+      activeProps={{ className: "bg-accent" }}
+    >
+      <div className="flex-shrink-0 mt-0.5 text-muted-foreground">
+        {resourceIcons[log.resource_type] || <FileText className="h-4 w-4" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span
+            className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium capitalize ${
+              actionColors[log.action] || "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {log.action}
+          </span>
+          <span className="text-xs text-muted-foreground capitalize">
+            {log.resource_type}
+          </span>
+        </div>
+        <p className="text-sm font-medium truncate">
+          {log.resource_name || `${log.resource_type} ${log.resource_id?.slice(0, 8) || ""}`}
+        </p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{log.actor_name || log.actor_type}</span>
+          <span>&bull;</span>
+          <span>{formatRelativeTime(log.created_at)}</span>
+        </div>
+      </div>
+      <ChevronDown className="h-4 w-4 text-muted-foreground flex-none rotate-[-90deg]" />
+    </Link>
   );
 }
