@@ -17,9 +17,12 @@ import puppeteer, { type Browser, type Page } from "puppeteer";
 
 const args = process.argv.slice(2);
 const urlIndex = args.indexOf("--url");
-const SITE_URL = urlIndex !== -1 ? args[urlIndex + 1] : "https://uta-notify.jmorrison.workers.dev";
+const SITE_URL = urlIndex !== -1 ? args[urlIndex + 1] : (process.env.TEST_URL || "http://localhost:3000");
 
-const TEST_USER = { email: "admin@uta.org", password: "***REDACTED***" };
+const TEST_USER = {
+  email: process.env.TEST_ADMIN_EMAIL || "admin@uta.org",
+  password: process.env.TEST_ADMIN_PASSWORD || "changeme",
+};
 
 // ============================================
 // HELPERS

@@ -5,8 +5,11 @@
 
 import puppeteer from "puppeteer";
 
-const SITE_URL = "https://uta-notify.jmorrison.workers.dev";
-const TEST_USER = { email: "admin@uta.org", password: "***REDACTED***" };
+const SITE_URL = process.env.TEST_URL || "http://localhost:3000";
+const TEST_USER = {
+  email: process.env.TEST_ADMIN_EMAIL || "admin@uta.org",
+  password: process.env.TEST_ADMIN_PASSWORD || "changeme",
+};
 
 async function main() {
   const browser = await puppeteer.launch({

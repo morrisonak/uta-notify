@@ -20,15 +20,15 @@ import { join } from "path";
 
 const args = process.argv.slice(2);
 const urlIndex = args.indexOf("--url");
-const SITE_URL = urlIndex !== -1 ? args[urlIndex + 1] : "https://uta-notify.jmorrison.workers.dev";
+const SITE_URL = urlIndex !== -1 ? args[urlIndex + 1] : (process.env.TEST_URL || "http://localhost:3000");
 
 const SCREENSHOT_DIR = join(import.meta.dir, "rbac-screenshots");
 
 const TEST_USERS = {
-  admin: { email: "admin@uta.org", password: "***REDACTED***" },
-  editor: { email: "editor@uta.org", password: "***REDACTED***" },
-  operator: { email: "operator@uta.org", password: "***REDACTED***" },
-  viewer: { email: "viewer@uta.org", password: "***REDACTED***" },
+  admin: { email: process.env.TEST_ADMIN_EMAIL || "admin@uta.org", password: process.env.TEST_ADMIN_PASSWORD || "changeme" },
+  editor: { email: process.env.TEST_EDITOR_EMAIL || "editor@uta.org", password: process.env.TEST_EDITOR_PASSWORD || "changeme" },
+  operator: { email: process.env.TEST_OPERATOR_EMAIL || "operator@uta.org", password: process.env.TEST_OPERATOR_PASSWORD || "changeme" },
+  viewer: { email: process.env.TEST_VIEWER_EMAIL || "viewer@uta.org", password: process.env.TEST_VIEWER_PASSWORD || "changeme" },
 } as const;
 
 type Role = keyof typeof TEST_USERS;

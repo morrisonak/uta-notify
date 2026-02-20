@@ -46,7 +46,7 @@ const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // seconds
 
 function getSessionConfig(): SessionConfig {
   return {
-    password: getEnvVar("SESSION_SECRET") || "***REDACTED***",
+    password: getEnvVar("SESSION_SECRET") || (() => { throw new Error("SESSION_SECRET environment variable is required"); })(),
     cookieName: "uta_session",
     cookie: {
       httpOnly: true,

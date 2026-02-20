@@ -16,7 +16,7 @@ import { join } from "path";
 // CONFIGURATION
 // ============================================
 
-const SITE_URL = process.env.TEST_URL || "https://uta-notify.jmorrison.workers.dev";
+const SITE_URL = process.env.TEST_URL || "http://localhost:3000";
 const SCREENSHOT_DIR = join(import.meta.dir, "rbac-screenshots");
 const RESULTS_FILE = join(import.meta.dir, "rbac-test-results.json");
 
