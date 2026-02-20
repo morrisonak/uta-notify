@@ -13,7 +13,7 @@
     {
       "binding": "DB",
       "database_name": "uta-notify-db",
-      "database_id": ""
+      "database_id": "687faa73-01d1-4bdc-8d20-49247d47460c"
     }
   ],
 
@@ -41,7 +41,7 @@
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": ""
+      "id": "bff18cc5d7ea4b74ac40a4275c0bca72"
     }
   ],
 

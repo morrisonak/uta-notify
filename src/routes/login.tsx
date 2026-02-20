@@ -34,22 +34,22 @@ function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="min-h-screen bg-background p-4 flex flex-col items-center justify-center">
+      <div className="w-full max-w-md space-y-4">
         {/* Logo / Header */}
         <div className="text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-xl bg-primary">
-            <AlertTriangle className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+            <AlertTriangle className="h-6 w-6 text-primary-foreground" />
           </div>
-          <h1 className="text-2xl font-bold">UTA Notify</h1>
-          <p className="mt-2 text-muted-foreground">
+          <h1 className="text-xl font-bold">UTA Notify</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Incident Communications Platform
           </p>
         </div>
 
         {/* Login Form */}
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {error && (
               <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
                 {error}
@@ -115,6 +115,33 @@ function LoginPage() {
               Sign In
             </button>
           </form>
+        </div>
+
+        {/* Demo Credentials */}
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Demo Accounts <span className="font-normal">(password: <code className="rounded bg-muted px-1 py-0.5">Demo1234</code>)</span></p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { role: "Admin", email: "admin@uta.org", desc: "Full access" },
+              { role: "Editor", email: "editor@uta.org", desc: "Create & edit" },
+              { role: "Operator", email: "operator@uta.org", desc: "Manage incidents" },
+              { role: "Viewer", email: "viewer@uta.org", desc: "Read only" },
+            ].map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                onClick={() => {
+                  setEmail(account.email);
+                  setPassword("Demo1234");
+                  setError(null);
+                }}
+                className="rounded-lg border bg-background p-2 text-left text-xs hover:bg-muted transition-colors"
+              >
+                <span className="font-medium">{account.role}</span>
+                <span className="block text-muted-foreground">{account.desc}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Footer */}
